@@ -1,0 +1,7 @@
+services:
+  animap:
+    build: .
+    container_name: animap
+    restart: unless-stopped
+    ports:
+      - "8100:8100"

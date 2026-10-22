@@ -21,7 +21,7 @@
 - `EX.TvCtl` + плагін `tvctl.js` + утиліта `tvctl` — пульт для Lampa: відкрити картку, джерело, серію з компʼютера і бачити, що відбувається (які запити пішли до джерел, з якою помилкою, чи стартував плеєр)
 
 Чим відрізняються від вбудованих: вбудовані AnimeON і Mikai шукають тайтл за назвою і часто показують зайве
-(для «Фрірен» — ще й «Початок після кінця»). `EX.*` з сервісом [`animap`](#animap) показують лише сезони цієї картки.
+(для «Фрірен» — ще й «Початок після кінця»). `EX.*` з сервісом [`animap`](#animap) (є в репозиторії) показують лише сезони цієї картки.
 
 ### Сумісність з lampac-ukraine
 
@@ -119,23 +119,55 @@ curl -s https://api.moonanime.vip/api/auth/login/ \
 
 ### <a id="animap"></a>Точний вибір за MAL ID (`animap`)
 
-Необов'язковий сервіс, який ви піднімаєте самі. Без нього `EX.AnimeON` і `EX.Mikai` працюють як звичайні — за назвою.
+Необовʼязковий сервіс. Без нього `EX.AnimeON` і `EX.Mikai` працюють як звичайні — за назвою.
 
-Запит і відповідь:
+**Архітектура**
 
 ```
-GET /animap?tmdb=209867&type=tv
+ Lampa (ТВ)                Lampac                         animap                     зовнішні дані
+ ──────────                ──────                         ──────                     ─────────────
+ відкрили аніме ──────▶ EX.AnimeON / EX.Mikai
+ (картка TMDB 209867)      │  GET /animap?tmdb=209867 ──▶ шукає картку в індексі ◀── Fribb/anime-lists
+                           │                              TMDB → MAL (раз на добу)     (TMDB↔MAL, сезони,
+                           │                              │                             зсув серій)
+                           │                              └─ назви за MAL ID ◀──────── Hikka API
+                           │  ◀── [{mal_id, title_ua, title_ja}, …]                     (UA/EN/JA, кеш)
+                           │
+                           ├─ пошук у джерелі за назвою з Hikka
+                           └─ лишає лише записи з цими MAL ID ──▶ у Lampa: сезони цієї картки, по порядку
+```
+
+**Запуск** — готовий сервіс у теці [`animap/`](animap/): один файл на Python без залежностей.
+
+```bash
+# просто Python 3
+python3 animap/animap.py                       # слухає :8100
+
+# або Docker
+cd animap && docker compose up -d --build      # Dockerfile + compose.yaml поруч
+```
+
+Перевірка: `curl "http://localhost:8100/animap?tmdb=209867&type=tv"` — має повернути три сезони «Фрірен».
+Перший запит після старту чекає, поки завантажиться база Fribb (~7 МБ).
+Налаштування через змінні середовища: `PORT` (8100), `REFRESH_HOURS` (24), `FRIBB_URL`, `HIKKA_URL`.
+
+Далі в `init.conf` Lampac: `"EX.AnimeON": { "animap": "http://АДРЕСА:8100" }` (і так само `EX.Mikai`).
+
+**Формат відповіді**
+
+```
+GET /animap?tmdb=209867&type=tv        (type: tv | movie)
 ```
 
 ```json
-{ "ok": true, "entries": [
-  { "mal_id": 52991, "title_ua": "Проводжальниця Фрірен",           "title_ja": "Sousou no Frieren" },
-  { "mal_id": 59978, "title_ua": "Проводжальниця Фрірен - 2 сезон", "title_ja": "Sousou no Frieren 2nd Season" }
+{ "ok": true, "tmdb": 209867, "type": "tv", "entries": [
+  { "mal_id": 52991, "tmdb_season": 1, "episode_offset": 0,  "title_ua": "Проводжальниця Фрірен",           "title_ja": "Sousou no Frieren" },
+  { "mal_id": 59978, "tmdb_season": 1, "episode_offset": 28, "title_ua": "Проводжальниця Фрірен - 2 сезон", "title_ja": "Sousou no Frieren 2nd Season" }
 ] }
 ```
 
-Дані: TMDB → MAL — [Fribb/anime-lists](https://github.com/Fribb/anime-lists) (`anime-list-full.json`),
-назви — [Hikka API](https://api.hikka.io/docs) (`/integrations/mal/anime/{mal_id}`).
+Модулям достатньо `mal_id`, `title_ua` (AnimeON) і `title_ja` (Mikai); решта полів — для довідки.
+Дані: [Fribb/anime-lists](https://github.com/Fribb/anime-lists), [Hikka API](https://api.hikka.io/docs).
 
 ### Пульт (`EX.TvCtl` + `tvctl.js` + `tvctl`)
 
@@ -174,7 +206,7 @@ export LAMPAC_PASSWD=...            # root-пароль Lampac, файл <Lampac
 
 Additional online modules for Lampac NextGen. Prefix `EX.` and routes `lite/ex_*` avoid conflicts with built-in modules.
 
-- `EX.AnimeON`, `EX.Mikai` — anime sources that pick the exact title by MAL id when an [`animap`](#animap) service is configured
+- `EX.AnimeON`, `EX.Mikai` — anime sources that pick the exact title by MAL id when the [`animap`](#animap) service (included, `animap/animap.py`, Python stdlib only) is configured
 - `EX.MoonAnime` — MoonAnime through the account API (`token` in `init.conf`), direct HLS/webm links, no browser
 - `EX.TvCtl` + `plugin/tvctl.js` + `tools/tvctl` — remote control and diagnostics for Lampa (open a card / source / episode, see balancer requests, Lampa messages, player start)
 
