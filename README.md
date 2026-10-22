@@ -37,9 +37,13 @@ Hikka, AnimeON, Mikai та інші українські аніме-сайти):
 
 Без `animap` модулі AnimeON і Mikai працюють як звичайні: шукають за назвою.
 
-## Підключення
+## Швидкий старт
 
-`module/repository.yaml`:
+Нижче `<Lampac>` — папка, де лежить ваш Lampac (там є `init.conf` і папка `module`).
+У Docker-образі Lampac NextGen це `/lampac` усередині контейнера — правте файли там, де вони у вас
+підключені з хоста (volume).
+
+**1. Додайте репозиторій.** Відкрийте (або створіть) файл `<Lampac>/module/repository.yaml` і допишіть у кінець:
 
 ```yaml
 - repository: https://github.com/TrueNihilisme/lampac-extra
@@ -47,32 +51,53 @@ Hikka, AnimeON, Mikai та інші українські аніме-сайти):
   modules:
     - EX.AnimeON
     - EX.Mikai
-    - EX.MoonAnime
-    - EX.TvCtl
 ```
 
-Модулі можна підключати й поодинці. Щоб у списку джерел не було двох однакових, вимкніть вбудовані
-відповідники в `init.conf`:
+Зайві рядки з `modules` можна прибрати — підключаються лише перелічені модулі. MoonAnime додавайте,
+тільки якщо у вас є акаунт (крок 3).
+
+**2. Вимкніть вбудовані двійники**, щоб у списку джерел не було двох AnimeON / Mikai.
+У `<Lampac>/init.conf` (це JSON, кома між секціями обовʼязкова) додайте:
 
 ```json
-"AnimeON":   { "enable": false, "enabled": false },
-"Mikai":     { "enable": false, "enabled": false },
-"MoonAnime": { "enable": false, "enabled": false }
+"AnimeON": { "enable": false, "enabled": false },
+"Mikai":   { "enable": false, "enabled": false },
 ```
 
-Налаштування наших модулів (`init.conf`, усе необовʼязкове, крім токена MoonAnime):
+**3. (Необовʼязково) MoonAnime.** Якщо маєте акаунт MoonAnime з підпискою:
+
+- отримайте токен (у терміналі, підставте свої логін і пароль):
+
+  ```sh
+  curl -s https://api.moonanime.vip/api/auth/login/ \
+       -H 'Content-Type: application/json' \
+       -d '{"username":"ЛОГІН","password":"ПАРОЛЬ"}'
+  ```
+
+  у відповіді буде `"token": "…"` — 40 символів;
+- допишіть `- EX.MoonAnime` у `repository.yaml`, а в `init.conf`:
+
+  ```json
+  "MoonAnime":    { "enable": false, "enabled": false },
+  "EX.MoonAnime": { "token": "ВАШ_ТОКЕН" },
+  ```
+
+**4. Перезапустіть Lampac двічі.** Перший запуск лише завантажує модулі з GitHub (у фоні, вже після старту),
+другий — компілює їх. Для Docker: `docker restart <назва-контейнера>`, зачекати хвилину, і ще раз.
+
+**5. Перевірте.** У лозі Lampac мають зʼявитися рядки `loaded module: EX.AnimeON` (і інші, що ви підключили).
+У Lampa відкрийте будь-яке аніме → «Дивитись» → «Онлайн» → у списку «Джерело» буде «[UA] AnimeON» / «[UA] Mikai».
+
+Так модулі вже працюють — шукають за назвою, як вбудовані. Щоб увімкнути **точний вибір за MAL ID**,
+потрібен сервіс `animap` (наступний розділ) і в `init.conf`:
 
 ```json
-"EX.AnimeON":   { "animap": "http://<адреса-animap>" },
-"EX.Mikai":     { "animap": "http://<адреса-animap>" },
-"EX.MoonAnime": { "token": "<токен вашого акаунта>" }
+"EX.AnimeON": { "animap": "http://АДРЕСА-ANIMAP" },
+"EX.Mikai":   { "animap": "http://АДРЕСА-ANIMAP" },
 ```
 
-Токен MoonAnime — це `token` з відповіді `POST https://api.moonanime.vip/api/auth/login/`
-(`{"username": "…", "password": "…"}`). У коді модуля ключів нема — лише в `init.conf`.
-
-Після змін у репозиторії Lampac завантажує нову версію у фоні **після** старту, тож щоб вона скомпілювалась,
-потрібен ще один перезапуск.
+**Оновлення.** Коли в цьому репозиторії зʼявляються зміни, Lampac сам підтягне їх при наступному
+запуску — знову потрібен другий перезапуск, щоб вони скомпілювались.
 
 ## Сервіс `animap`
 
