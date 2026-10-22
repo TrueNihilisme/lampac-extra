@@ -74,6 +74,9 @@ public class ExMikaiController : BaseOnlineController
                 if (exact.Count > 0)
                     return e.Success(exact.OrderBy(x => x.order).Select(x => x.row).ToList());
 
+                if (map != null)
+                    return e.Fail("animap: no exact match"); // the card is known, but this source has no such title
+
                 return e.Success(list);
             });
 
