@@ -37,7 +37,38 @@ Hikka, AnimeON, Mikai та інші українські аніме-сайти):
 
 Без `animap` модулі AnimeON і Mikai працюють як звичайні: шукають за назвою.
 
-## Швидкий старт
+## Встановлення однією командою
+
+На машині, де лежать файли Lampac (для Docker — на хості, у папці, підключеній у контейнер):
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/TrueNihilisme/lampac-extra/main/install.sh | sh -s -- /шлях/до/lampac
+```
+
+Скрипт допише репозиторій у `module/repository.yaml`, вимкне вбудовані AnimeON і Mikai в `init.conf`
+(перед цим зробить копії `*.before-lampac-extra`) і підкаже, що далі. Додаткові опції:
+
+| Опція | Що робить |
+|---|---|
+| `--moonanime-token ТОКЕН` | підключити й MoonAnime (як отримати токен — крок 3 нижче) |
+| `--animap http://АДРЕСА` | увімкнути точний вибір аніме за MAL ID (розділ про `animap`) |
+| `--restart КОНТЕЙНЕР` | самому двічі перезапустити Docker-контейнер Lampac і показати, які модулі завантажились |
+
+Приклад для Docker з усім одразу:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/TrueNihilisme/lampac-extra/main/install.sh \
+  | sh -s -- /opt/lampac --moonanime-token ВАШ_ТОКЕН --restart lampac
+```
+
+Потрібен `python3`. Якщо `init.conf` не читається як JSON (наприклад, у ньому коментарі), скрипт нічого
+не змінить — тоді за кроками нижче вручну.
+
+⚠️ Для Docker: якщо з хоста підключений лише `init.conf`, а папка `module` — ні, то `repository.yaml`
+лежить усередині контейнера й зникне при його перестворенні. Тоді підключіть `module/repository.yaml`
+з хоста окремим томом.
+
+## Швидкий старт (вручну)
 
 Нижче `<Lampac>` — папка, де лежить ваш Lampac (там є `init.conf` і папка `module`).
 У Docker-образі Lampac NextGen це `/lampac` усередині контейнера — правте файли там, де вони у вас
