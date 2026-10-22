@@ -1,80 +1,31 @@
-# lampac-extra
+# Lampac Extra Modules (`EX.*`)
 
-*Additional online modules for [Lampac NextGen](https://github.com/lampac-nextgen/lampac): AnimeON and Mikai
-with exact title matching by MAL id, MoonAnime through the account API, and a small command queue for a Lampa
-client plugin. Documentation below is in Ukrainian.*
+Додаткові онлайн-модулі для Lampac NextGen.
+Усі модулі мають префікс `EX.` і власні адреси `lite/ex_*`, тож не конфліктують із вбудованими модулями Lampac.
 
-Додаткові модулі для [Lampac NextGen](https://github.com/lampac-nextgen/lampac). Lampac завантажує їх сам —
-так само, як модулі `lampac-ukraine`, — через `module/repository.yaml`. Вбудовані модулі Lampac не змінюються:
-наші мають власні назви (`EX.*`) і власні адреси (`lite/ex_*`), тож оновлення Lampac їх не зачіпає.
+## Навігація
 
-## Навіщо
+- [Українська](#ua)
+- [English](#en)
 
-Вбудовані аніме-джерела шукають тайтл **за назвою** і далі або вгадують, або показують список «схожих».
-Через це:
+## <a id="ua"></a>Українська
 
-- у список потрапляють чужі тайтли зі схожою назвою. Приклад: для картки «Фрірен: після кінця пригоди»
-  вбудований AnimeON пропонує і «Проводжальниця Фрірен», і «Початок після кінця» — зовсім інше аніме;
-- сезони не збігаються: у TMDB «Фрірен» — один сезон на 38 серій, а на аніме-сайтах це три окремі тайтли.
+### Доступні модулі
 
-Модулі звідси вміють вибирати тайтл **точно — за MAL ID** (ідентифікатор MyAnimeList, на який спираються
-Hikka, AnimeON, Mikai та інші українські аніме-сайти):
+**Аніме**
+- `EX.AnimeON` — AnimeON з точним вибором тайтлу за MAL ID
+- `EX.Mikai` — Mikai з точним вибором тайтлу за назвою оригіналу
+- `EX.MoonAnime` — MoonAnime через акаунт (потрібна підписка), відео без браузера
 
-```
-картка TMDB  →  MAL ID кожного сезону  →  правильні назви  →  лише записи джерела з цим MAL ID
-```
+**Службові**
+- `EX.TvCtl` — черга команд і журнал для клієнтського плагіна Lampa (дистанційне керування)
 
-Для «Фрірен» результат — рівно «Проводжальниця Фрірен», «… — 2 сезон», «… — 3 сезон», по порядку.
+Чим відрізняються від вбудованих: вбудовані AnimeON і Mikai шукають тайтл за назвою і часто показують зайве
+(для «Фрірен» — ще й «Початок після кінця»). `EX.*` з сервісом [`animap`](#animap) показують лише сезони цієї картки.
 
-## Модулі
+### Автовстановлення через `repository.yaml`
 
-| Модуль | Адреса | Що робить |
-|---|---|---|
-| `EX.AnimeON` | `lite/ex_animeon` | Джерело AnimeON. З сервісом `animap` шукає за українською назвою з Hikka і лишає лише записи, у яких `malId` збігся з карткою. Один збіг — відкриває одразу, кілька (сезони) — показує тільки їх |
-| `EX.Mikai` | `lite/ex_mikai` | Джерело Mikai. У пошуку Mikai нема MAL ID, тому з `animap` шукає за оригінальною назвою латиницею і лишає записи з тією самою назвою |
-| `EX.MoonAnime` | `lite/ex_moonanime` | MoonAnime через API акаунта (потрібен власний акаунт із підпискою). Серії беруться з преміум-API — готові посилання HLS/webm, без браузера Chromium |
-| `EX.TvCtl` | `/tvctl/*` | Черга команд і журнал звітів для клієнтського плагіна Lampa (дистанційне керування й діагностика). Сам плагін сюди не входить |
-
-Без `animap` модулі AnimeON і Mikai працюють як звичайні: шукають за назвою.
-
-## Встановлення однією командою
-
-На машині, де лежать файли Lampac (для Docker — на хості, у папці, підключеній у контейнер):
-
-```sh
-curl -fsSL https://raw.githubusercontent.com/TrueNihilisme/lampac-extra/main/install.sh | sh -s -- /шлях/до/lampac
-```
-
-Скрипт допише репозиторій у `module/repository.yaml`, вимкне вбудовані AnimeON і Mikai в `init.conf`
-(перед цим зробить копії `*.before-lampac-extra`) і підкаже, що далі. Додаткові опції:
-
-| Опція | Що робить |
-|---|---|
-| `--moonanime-token ТОКЕН` | підключити й MoonAnime (як отримати токен — крок 3 нижче) |
-| `--animap http://АДРЕСА` | увімкнути точний вибір аніме за MAL ID (розділ про `animap`) |
-| `--restart КОНТЕЙНЕР` | самому двічі перезапустити Docker-контейнер Lampac і показати, які модулі завантажились |
-
-Приклад для Docker з усім одразу:
-
-```sh
-curl -fsSL https://raw.githubusercontent.com/TrueNihilisme/lampac-extra/main/install.sh \
-  | sh -s -- /opt/lampac --moonanime-token ВАШ_ТОКЕН --restart lampac
-```
-
-Потрібен `python3`. Якщо `init.conf` не читається як JSON (наприклад, у ньому коментарі), скрипт нічого
-не змінить — тоді за кроками нижче вручну.
-
-⚠️ Для Docker: якщо з хоста підключений лише `init.conf`, а папка `module` — ні, то `repository.yaml`
-лежить усередині контейнера й зникне при його перестворенні. Тоді підключіть `module/repository.yaml`
-з хоста окремим томом.
-
-## Швидкий старт (вручну)
-
-Нижче `<Lampac>` — папка, де лежить ваш Lampac (там є `init.conf` і папка `module`).
-У Docker-образі Lampac NextGen це `/lampac` усередині контейнера — правте файли там, де вони у вас
-підключені з хоста (volume).
-
-**1. Додайте репозиторій.** Відкрийте (або створіть) файл `<Lampac>/module/repository.yaml` і допишіть у кінець:
+Створіть або оновіть `module/repository.yaml`:
 
 ```yaml
 - repository: https://github.com/TrueNihilisme/lampac-extra
@@ -82,91 +33,127 @@ curl -fsSL https://raw.githubusercontent.com/TrueNihilisme/lampac-extra/main/ins
   modules:
     - EX.AnimeON
     - EX.Mikai
+    - EX.MoonAnime
 ```
 
-Зайві рядки з `modules` можна прибрати — підключаються лише перелічені модулі. MoonAnime додавайте,
-тільки якщо у вас є акаунт (крок 3).
+Важливо:
+- `branch` — необов'язково, за замовчуванням `main`.
+- `modules` — перелічіть лише потрібні модулі.
+- Після зміни **перезапустіть Lampac двічі**: перший запуск завантажує модулі, другий — компілює.
+- Вимкніть вбудовані двійники, щоб у списку джерел не було двох однакових (див. [init.conf](#initconf)).
 
-**2. Вимкніть вбудовані двійники**, щоб у списку джерел не було двох AnimeON / Mikai.
-У `<Lampac>/init.conf` (це JSON, кома між секціями обовʼязкова) додайте:
+### Встановлення однією командою
+
+Запускайте на машині з файлами Lampac (для Docker — на хості, у підключеній теці):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/TrueNihilisme/lampac-extra/main/install.sh | sh -s -- /path/to/lampac
+```
+
+Скрипт додасть репозиторій у `repository.yaml` і вимкне вбудовані AnimeON / Mikai в `init.conf`
+(копії до змін — `*.before-lampac-extra`). Опції:
+
+- `--moonanime-token TOKEN` — підключити `EX.MoonAnime`
+- `--animap http://host:port` — увімкнути точний вибір за MAL ID
+- `--restart CONTAINER` — двічі перезапустити Docker-контейнер Lampac
+
+Потрібен `python3`.
+
+### Ручне встановлення
+
+1. Клонуйте репозиторій:
+```bash
+git clone https://github.com/TrueNihilisme/lampac-extra.git
+```
+
+2. Скопіюйте потрібні теки модулів у директорію `module` вашого Lampac.
+
+3. Для Docker приклад монтування:
+```bash
+-v /path/to/lampac-extra/EX.AnimeON:/lampac/module/EX.AnimeON
+```
+
+### <a id="initconf"></a>Налаштування в `init.conf`
+
+Вимкнення вбудованих двійників:
 
 ```json
-"AnimeON": { "enable": false, "enabled": false },
-"Mikai":   { "enable": false, "enabled": false },
+"AnimeON":   { "enable": false, "enabled": false },
+"Mikai":     { "enable": false, "enabled": false },
+"MoonAnime": { "enable": false, "enabled": false }
 ```
 
-**3. (Необовʼязково) MoonAnime.** Якщо маєте акаунт MoonAnime з підпискою:
-
-- отримайте токен (у терміналі, підставте свої логін і пароль):
-
-  ```sh
-  curl -s https://api.moonanime.vip/api/auth/login/ \
-       -H 'Content-Type: application/json' \
-       -d '{"username":"ЛОГІН","password":"ПАРОЛЬ"}'
-  ```
-
-  у відповіді буде `"token": "…"` — 40 символів;
-- допишіть `- EX.MoonAnime` у `repository.yaml`, а в `init.conf`:
-
-  ```json
-  "MoonAnime":    { "enable": false, "enabled": false },
-  "EX.MoonAnime": { "token": "ВАШ_ТОКЕН" },
-  ```
-
-**4. Перезапустіть Lampac двічі.** Перший запуск лише завантажує модулі з GitHub (у фоні, вже після старту),
-другий — компілює їх. Для Docker: `docker restart <назва-контейнера>`, зачекати хвилину, і ще раз.
-
-**5. Перевірте.** У лозі Lampac мають зʼявитися рядки `loaded module: EX.AnimeON` (і інші, що ви підключили).
-У Lampa відкрийте будь-яке аніме → «Дивитись» → «Онлайн» → у списку «Джерело» буде «[UA] AnimeON» / «[UA] Mikai».
-
-Так модулі вже працюють — шукають за назвою, як вбудовані. Щоб увімкнути **точний вибір за MAL ID**,
-потрібен сервіс `animap` (наступний розділ) і в `init.conf`:
+Наші модулі (усі поля необов'язкові, крім `token` для MoonAnime):
 
 ```json
-"EX.AnimeON": { "animap": "http://АДРЕСА-ANIMAP" },
-"EX.Mikai":   { "animap": "http://АДРЕСА-ANIMAP" },
-```
-
-**Оновлення.** Коли в цьому репозиторії зʼявляються зміни, Lampac сам підтягне їх при наступному
-запуску — знову потрібен другий перезапуск, щоб вони скомпілювались.
-
-## Сервіс `animap`
-
-Це окремий маленький HTTP-сервіс, який ви піднімаєте самі (його код тут не публікується — формат простий).
-Модулі звертаються до нього так:
-
-```
-GET /animap?tmdb=209867&type=tv        (type: tv | movie)
-```
-
-і чекають відповідь:
-
-```json
-{
-  "ok": true,
-  "entries": [
-    { "mal_id": 52991, "title_ua": "Проводжальниця Фрірен",           "title_ja": "Sousou no Frieren" },
-    { "mal_id": 59978, "title_ua": "Проводжальниця Фрірен - 2 сезон", "title_ja": "Sousou no Frieren 2nd Season" }
-  ]
+"EX.AnimeON": {
+  "animap": "http://host:port",
+  "displayname": "[UA] AnimeON"
+},
+"EX.Mikai": {
+  "animap": "http://host:port",
+  "displayname": "[UA] Mikai"
+},
+"EX.MoonAnime": {
+  "token": "YOUR_TOKEN",
+  "displayname": "MoonAnime"
 }
 ```
 
-Звідки брати дані:
+Решта полів — стандартні для онлайн-модулів Lampac (`displayindex`, `useproxy`, `proxy` тощо).
 
-- **TMDB → MAL** — відкрита база [Fribb/anime-lists](https://github.com/Fribb/anime-lists)
-  (`anime-list-full.json`, поле `themoviedb_id`; для фільмів значення — список). Там же є сезон TMDB
-  і зсув серій для кожного запису;
-- **назви** — [Hikka](https://hikka.io), відкритий API: `GET https://api.hikka.io/integrations/mal/anime/{mal_id}`
-  повертає `title_ua`, `title_en`, `title_ja`.
+### Токен MoonAnime
 
-## TvCtl
+```bash
+curl -s https://api.moonanime.vip/api/auth/login/ \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"LOGIN","password":"PASSWORD"}'
+```
 
-Сервер для клієнтського плагіна, який опитує `/tvctl/poll?dev=<пристрій>` і виконує команди (відкрити
-картку, джерело, серію тощо), а у `/tvctl/report` шле звіти (запити до джерел, повідомлення Lampa, старт
-плеєра). Команди (`POST /tvctl/cmd?dev=…`), журнал (`/tvctl/log`) і список пристроїв (`/tvctl/devices`)
-доступні лише з root-паролем Lampac. Без плагіна модуль просто нічого не робить.
+У відповіді — `"token": "…"` (40 символів). Його й вставте в `EX.MoonAnime.token`.
 
-## Ліцензія і походження
+### <a id="animap"></a>Точний вибір за MAL ID (`animap`)
 
-Модулі `EX.AnimeON`, `EX.Mikai`, `EX.MoonAnime` побудовані на однойменних модулях
-[Lampac NextGen](https://github.com/lampac-nextgen/lampac) і змінені.
+Необов'язковий сервіс, який ви піднімаєте самі. Без нього `EX.AnimeON` і `EX.Mikai` працюють як звичайні — за назвою.
+
+Запит і відповідь:
+
+```
+GET /animap?tmdb=209867&type=tv
+```
+
+```json
+{ "ok": true, "entries": [
+  { "mal_id": 52991, "title_ua": "Проводжальниця Фрірен",           "title_ja": "Sousou no Frieren" },
+  { "mal_id": 59978, "title_ua": "Проводжальниця Фрірен - 2 сезон", "title_ja": "Sousou no Frieren 2nd Season" }
+] }
+```
+
+Дані: TMDB → MAL — [Fribb/anime-lists](https://github.com/Fribb/anime-lists) (`anime-list-full.json`),
+назви — [Hikka API](https://api.hikka.io/docs) (`/integrations/mal/anime/{mal_id}`).
+
+### `EX.TvCtl`
+
+Ендпоінти: `/tvctl/poll`, `/tvctl/report` (для плагіна, без пароля); `/tvctl/cmd`, `/tvctl/log`, `/tvctl/devices`
+(лише з root-паролем Lampac). Клієнтський плагін у репозиторій не входить.
+
+---
+
+## <a id="en"></a>English
+
+Additional online modules for Lampac NextGen. Prefix `EX.` and routes `lite/ex_*` avoid conflicts with built-in modules.
+
+- `EX.AnimeON`, `EX.Mikai` — anime sources that pick the exact title by MAL id when an [`animap`](#animap) service is configured
+- `EX.MoonAnime` — MoonAnime through the account API (`token` in `init.conf`), direct HLS/webm links, no browser
+- `EX.TvCtl` — command queue and report log for a Lampa client plugin
+
+Install: add the repository to `module/repository.yaml` (see above) or run
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/TrueNihilisme/lampac-extra/main/install.sh | sh -s -- /path/to/lampac
+```
+
+then restart Lampac twice and disable the built-in `AnimeON` / `Mikai` / `MoonAnime` in `init.conf`.
+
+`EX.AnimeON`, `EX.Mikai`, `EX.MoonAnime` are based on the modules of the same name in
+[Lampac NextGen](https://github.com/lampac-nextgen/lampac).
