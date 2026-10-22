@@ -18,7 +18,7 @@
 - `EX.MoonAnime` — MoonAnime через акаунт (потрібна підписка), відео без браузера
 
 **Службові**
-- `EX.TvCtl` — черга команд і журнал для клієнтського плагіна Lampa (дистанційне керування)
+- `EX.TvCtl` + плагін `tvctl.js` + утиліта `tvctl` — пульт для Lampa: відкрити картку, джерело, серію з компʼютера і бачити, що відбувається (які запити пішли до джерел, з якою помилкою, чи стартував плеєр)
 
 Чим відрізняються від вбудованих: вбудовані AnimeON і Mikai шукають тайтл за назвою і часто показують зайве
 (для «Фрірен» — ще й «Початок після кінця»). `EX.*` з сервісом [`animap`](#animap) показують лише сезони цієї картки.
@@ -137,10 +137,36 @@ GET /animap?tmdb=209867&type=tv
 Дані: TMDB → MAL — [Fribb/anime-lists](https://github.com/Fribb/anime-lists) (`anime-list-full.json`),
 назви — [Hikka API](https://api.hikka.io/docs) (`/integrations/mal/anime/{mal_id}`).
 
-### `EX.TvCtl`
+### Пульт (`EX.TvCtl` + `tvctl.js` + `tvctl`)
 
-Ендпоінти: `/tvctl/poll`, `/tvctl/report` (для плагіна, без пароля); `/tvctl/cmd`, `/tvctl/log`, `/tvctl/devices`
-(лише з root-паролем Lampac). Клієнтський плагін у репозиторій не входить.
+Навіщо: керувати Lampa на телевізорі з компʼютера і бачити, чому джерело «не відповідає» —
+який саме запит пішов, з яким кодом і за скільки часу, що показала Lampa, чи запустився плеєр.
+
+1. Підключіть модуль `EX.TvCtl` (у `repository.yaml` або скриптом) і перезапустіть Lampac двічі.
+2. Скопіюйте `plugin/tvctl.js` у `<Lampac>/wwwroot/custom/tvctl.js`.
+3. У Lampa: Налаштування → Розширення → Додати плагін → `http(s)://ВАШ-LAMPAC/custom/tvctl.js`, перезапустіть Lampa.
+   Щоб пульт працював лише на деяких пристроях, задайте до завантаження плагіна
+   `window.tvctl_devices = ['MIBOX4', 'TIZEN'];` (назва пристрою — модель Android, `TIZEN` для Samsung).
+4. На компʼютері:
+
+```bash
+export LAMPAC=http://your-lampac:9118
+export LAMPAC_PASSWD=...            # root-пароль Lampac, файл <Lampac>/passwd
+./tools/tvctl devices               # хто на звʼязку
+./tools/tvctl cmd '{"cmd":"open","id":209867,"type":"tv"}'   # відкрити картку TMDB
+./tools/tvctl cmd '{"cmd":"online"}'                          # «Онлайн»
+./tools/tvctl cmd '{"cmd":"items"}'                           # що є на екрані (з номерами)
+./tools/tvctl cmd '{"cmd":"click","index":5}'                 # натиснути пункт №5
+./tools/tvctl log 20                                          # останні звіти
+```
+
+Команди: `state`, `items`, `click {index}`, `key {keys: [up, down, left, right, enter, back]}`,
+`open {id, type: tv|movie}`, `online {balanser?}`, `reload`.
+Звіти: `req` (запити до джерел — і нативні на Android), `noty` (повідомлення Lampa), `player_start`,
+`activity`, `error`, `result`.
+
+Безпека: телевізор опитує `/tvctl/poll` і шле `/tvctl/report` без пароля; надсилати команди
+й читати журнал можна лише з root-паролем Lampac.
 
 ---
 
@@ -150,7 +176,7 @@ Additional online modules for Lampac NextGen. Prefix `EX.` and routes `lite/ex_*
 
 - `EX.AnimeON`, `EX.Mikai` — anime sources that pick the exact title by MAL id when an [`animap`](#animap) service is configured
 - `EX.MoonAnime` — MoonAnime through the account API (`token` in `init.conf`), direct HLS/webm links, no browser
-- `EX.TvCtl` — command queue and report log for a Lampa client plugin
+- `EX.TvCtl` + `plugin/tvctl.js` + `tools/tvctl` — remote control and diagnostics for Lampa (open a card / source / episode, see balancer requests, Lampa messages, player start)
 
 Install: add the repository to `module/repository.yaml` (see above) or run
 
