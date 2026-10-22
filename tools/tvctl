@@ -1,0 +1,31 @@
+#!/bin/sh
+# tvctl — send commands to a Lampa client plugin through the Lampac module EX.TvCtl and read its reports.
+#
+#   export LAMPAC=http://your-lampac:9118      # Lampac address
+#   export LAMPAC_PASSWD=...                   # Lampac root password (file <Lampac>/passwd)
+#
+#   tvctl devices                              which devices are polling
+#   tvctl cmd '{"cmd":"state"}' [DEVICE]       queue a command (default device: TVCTL_DEV or the first one polling)
+#   tvctl log [N]                              last N reports (default 30)
+#
+# Examples:
+#   tvctl cmd '{"cmd":"open","id":209867,"type":"tv"}'
+#   tvctl cmd '{"cmd":"online"}'; tvctl cmd '{"cmd":"items"}'; tvctl cmd '{"cmd":"click","index":5}'
+#   tvctl log 20
+set -eu
+: "${LAMPAC:?set LAMPAC=http://host:port}"
+: "${LAMPAC_PASSWD:?set LAMPAC_PASSWD (Lampac root password)}"
+api() { curl -fsS --cookie "accspasswd=$LAMPAC_PASSWD" "$@"; }
+
+case "${1:-}" in
+  devices) api "$LAMPAC/tvctl/devices"; echo ;;
+  log)     api "$LAMPAC/tvctl/log?last=${2:-30}"; echo ;;
+  cmd)
+    [ -n "${2:-}" ] || { echo "usage: tvctl cmd '<json>' [DEVICE]"; exit 1; }
+    dev="${3:-${TVCTL_DEV:-}}"
+    [ -n "$dev" ] || dev=$(api "$LAMPAC/tvctl/devices" | head -1 | cut -d' ' -f1)
+    [ -n "$dev" ] || { echo "no device is polling — is the plugin installed in Lampa?"; exit 1; }
+    printf '%s' "$2" | api -X POST -H 'Content-Type: text/plain' --data-binary @- "$LAMPAC/tvctl/cmd?dev=$dev" -o /dev/null
+    echo "queued for $dev" ;;
+  *) sed -n 2,16p "$0" ;;
+esac
