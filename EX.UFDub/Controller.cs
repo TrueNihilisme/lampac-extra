@@ -245,7 +245,8 @@ public class ExUfdubController : BaseOnlineController
             string name = WebUtility.HtmlDecode(Unescape(m.Groups[1].Value)).Trim();
             string url = Unescape(m.Groups[2].Value);
 
-            if (string.IsNullOrWhiteSpace(url) || name.Equals("Трейлер", StringComparison.OrdinalIgnoreCase))
+            // Trailers/teasers share the list with the episodes and would take the number of the first episode.
+            if (string.IsNullOrWhiteSpace(url) || Regex.IsMatch(name, @"^\s*[\[(]?\s*(трейлер|тизер|teaser|trailer|промо|анонс)", RegexOptions.IgnoreCase))
                 continue;
 
             var tab = Regex.Match(url, @"[?&]TAB=([^&]*)");
