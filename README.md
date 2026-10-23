@@ -201,6 +201,15 @@ export LAMPAC_PASSWD=...            # root-пароль Lampac, файл <Lampac
 Безпека: телевізор опитує `/tvctl/poll` і шле `/tvctl/report` без пароля; надсилати команди
 й читати журнал можна лише з root-паролем Lampac.
 
+### Ліцензія
+
+Репозиторій поширюється за **GNU AGPL-3.0** (файл [`LICENSE`](LICENSE)).
+
+`EX.AnimeON`, `EX.Mikai`, `EX.MoonAnime` — змінені версії модулів з
+[Lampac NextGen](https://github.com/lampac-nextgen/lampac) (AGPL-3.0), тому успадковують її умови.
+Змінено: 2026-10-22 (докладно — в історії комітів).
+`EX.TvCtl`, `tvctl.js`, `tvctl` і `animap` написані окремо.
+
 ---
 
 ## <a id="en"></a>English
@@ -221,3 +230,12 @@ then restart Lampac twice and disable the built-in `AnimeON` / `Mikai` / `MoonAn
 
 `EX.AnimeON`, `EX.Mikai`, `EX.MoonAnime` are based on the modules of the same name in
 [Lampac NextGen](https://github.com/lampac-nextgen/lampac).
+
+### License
+
+Licensed under the **GNU AGPL-3.0** (see [`LICENSE`](LICENSE)).
+
+`EX.AnimeON`, `EX.Mikai` and `EX.MoonAnime` are modified versions of modules from
+[Lampac NextGen](https://github.com/lampac-nextgen/lampac) (AGPL-3.0) and inherit its terms.
+Modified: 2026-10-22 (see the commit history for details).
+`EX.TvCtl`, `tvctl.js`, `tvctl` and `animap` are original to this repository.
