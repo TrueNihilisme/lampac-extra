@@ -20,7 +20,7 @@ public class ExUfdubController : BaseOnlineController
 
     [HttpGet, Staticache(manually: true)]
     [Route("lite/ex_ufdub")]
-    async public Task<ActionResult> Index(string title, string original_title, short year, string href = null, short t = -1, int serial = -1, bool rjson = false, bool similar = false)
+    async public Task<ActionResult> Index(string title, string original_title, short year, string href = null, short t = -1, short s = -1, int serial = -1, bool rjson = false, bool similar = false)
     {
         if (await IsRequestBlocked(rch: true))
             return badInitMsg;
@@ -72,10 +72,45 @@ public class ExUfdubController : BaseOnlineController
 
             // The balancer must stay grey for titles the site does not have: only an exact name match is
             // opened automatically, near matches are listed only on explicit request (similar=true).
-            var exact = search.Value.Where(f => IsExactMatch(f.title, title, original_title)).ToList();
-            if (exact.Count > 0 && !similar)
+            // Every season of a series is a separate page on the site ("Name", "Name 2", "Name II"),
+            // so for a series the matching pages are offered as seasons.
+            var seasons = FindSeasons(search.Value, title, original_title);
+            if (seasons.Count > 0 && !similar)
             {
-                href = exact[0].href;
+                // movie: only the page with the plain name; series: the season the client asked for (s),
+                // the only page if there is one, otherwise the list of seasons.
+                (string title, string href, string poster, int season) pick = default;
+                if (serial == 0)
+                    pick = seasons.FirstOrDefault(x => x.season == 1);
+                else if (s > 0)
+                    pick = seasons.FirstOrDefault(x => x.season == s);
+                else if (seasons.Count == 1)
+                    pick = seasons[0];
+
+                if (pick.href == null && (serial == 0 || s > 0))
+                    return OnError(serial == 0 ? "exact match" : "season");
+
+                if (pick.href != null)
+                {
+                    href = pick.href;
+                    if (s < 1)
+                        s = (short)pick.season;
+                }
+                else
+                {
+                    var tpl = new SeasonTpl();
+
+                    foreach (var item in seasons)
+                    {
+                        tpl.Append(
+                            item.title,
+                            $"{host}/lite/ex_ufdub?rjson={rjson}&title={enc_title}&original_title={enc_original_title}&year={year}&serial={serial}&href={HttpUtility.UrlEncode(item.href)}&s={item.season}",
+                            item.season.ToString()
+                        );
+                    }
+
+                    return ContentTpl(tpl);
+                }
             }
             else if (similar)
             {
@@ -102,7 +137,7 @@ public class ExUfdubController : BaseOnlineController
         #endregion
 
     rhubFallbackVideos:
-        var videos = await InvokeCacheResult<List<UfdubEpisode>>($"ex_ufdub:videos:{href}", TimeSpan.FromHours(2), async e =>
+        var videos = await InvokeCacheResult<List<UfdubEpisode>>($"ex_ufdub:v2:videos:{href}", TimeSpan.FromHours(2), async e =>
         {
             // The title page embeds the video.ufdub.com player; its address differs between sections, so read it from the page.
             string player = null;
@@ -157,7 +192,7 @@ public class ExUfdubController : BaseOnlineController
             vtpl.Append(
                 tabs[i].Key,
                 i == t,
-                $"{host}/lite/ex_ufdub?rjson={rjson}&title={enc_title}&original_title={enc_original_title}&year={year}&serial={serial}&href={HttpUtility.UrlEncode(href)}&t={i}"
+                $"{host}/lite/ex_ufdub?rjson={rjson}&title={enc_title}&original_title={enc_original_title}&year={year}&serial={serial}&href={HttpUtility.UrlEncode(href)}&s={s}&t={i}"
             );
         }
 
@@ -169,7 +204,7 @@ public class ExUfdubController : BaseOnlineController
             etpl.Append(
                 episodes[i].Name,
                 title ?? original_title,
-                "1",
+                s > 0 ? s.ToString() : "1",
                 EpisodeNumber(episodes[i].Name, i).ToString(),
                 HostStreamProxy(episodes[i].Url),
                 vast: init.vast
@@ -200,6 +235,61 @@ public class ExUfdubController : BaseOnlineController
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Season number of a site page for the card, or 0 when the page is a different work.
+    /// The first season has the plain name ("Name"); the next ones add a suffix ("Name 2", "Name 2 сезон", "Name II").
+    /// A longer subtitle ("Name: Another story") is not a season.
+    /// </summary>
+    static int SeasonOf(string siteTitle, string title, string original_title)
+    {
+        string[] names = { Norm(title), Norm(original_title) };
+        string[] roman = { "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x" };
+
+        foreach (string part in siteTitle.Split('/'))
+        {
+            string p = Norm(part);
+            if (p == null)
+                continue;
+
+            foreach (string name in names)
+            {
+                if (name == null || !p.StartsWith(name))
+                    continue;
+
+                string rest = p.Substring(name.Length);
+                if (rest.Length == 0)
+                    return 1;
+
+                var m = Regex.Match(rest, @"^(?:сезон|season)?(\d{1,2})(?:сезон|season)?$");
+                if (m.Success)
+                    return int.Parse(m.Groups[1].Value);
+
+                int r = Array.IndexOf(roman, rest);
+                if (r >= 0)
+                    return r + 2;
+            }
+        }
+
+        return 0;
+    }
+
+    /// <summary>Pages of the site that are seasons of the card, ordered by season number.</summary>
+    static List<(string title, string href, string poster, int season)> FindSeasons(List<(string title, string href, string poster)> found, string title, string original_title)
+    {
+        var rows = new List<(string title, string href, string poster, int season)>();
+
+        foreach (var f in found)
+        {
+            int n = SeasonOf(f.title, title, original_title);
+            if (n > 0)
+                rows.Add((f.title, f.href, f.poster, n));
+        }
+
+        // Stable sort: pages with the same number (two "plain" pages of one title) stay in site order and
+        // are told apart by their full site titles in the list.
+        return rows.OrderBy(x => x.season).ToList();
     }
 
     static List<(string title, string href, string poster)> ParseSearch(string html, string host)
