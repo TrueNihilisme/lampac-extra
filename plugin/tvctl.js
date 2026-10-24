@@ -154,6 +154,21 @@
                     else if (k === 'backward') Lampa.Activity.backward();
                 });
                 res.state = state();
+            } else if (c.cmd === 'caps') {
+                /* what the engine supports, for plugins that style Lampa (themes) */
+                var sup = function (prop, value) { try { return !!(window.CSS && CSS.supports && CSS.supports(prop, value)); } catch (e) { return false; } };
+                res.caps = {
+                    ua: navigator.userAgent,
+                    backdrop: sup('backdrop-filter', 'blur(4px)'),
+                    webkit_backdrop: sup('-webkit-backdrop-filter', 'blur(4px)'),
+                    filter_blur: sup('filter', 'blur(4px)'),
+                    css_vars: sup('--x', '0'),
+                    grid: sup('display', 'grid'),
+                    gap: sup('gap', '1px'),
+                    aspect_ratio: sup('aspect-ratio', '1'),
+                    clip_text: sup('-webkit-background-clip', 'text'),
+                    screen: window.innerWidth + 'x' + window.innerHeight + '@' + (window.devicePixelRatio || 1)
+                };
             } else if (c.cmd === 'settings') {
                 Lampa.Controller.toggle('settings');
                 res.state = state();
