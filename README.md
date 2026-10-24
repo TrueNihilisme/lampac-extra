@@ -197,8 +197,11 @@ export LAMPAC_PASSWD=...            # root-пароль Lampac, файл <Lampac
 ./tools/tvctl log 20                                          # останні звіти
 ```
 
-Команди: `state`, `items`, `click {index}`, `key {keys: [up, down, left, right, enter, back]}`,
-`open {id, type: tv|movie}`, `online {balanser?}`, `reload`.
+Команди: `state`, `items`, `click {index}`, `key {keys: [up, down, left, right, enter, back, backward]}`,
+`settings`, `home`, `open {id, type: tv|movie}`, `online {balanser?}`, `reload`.
+`items`/`click` працюють у тому шарі, де зараз пульт: налаштування, список вибору, діалог, меню, шапка або екран;
+`state` показує його ім'я (`controller`). `back` — як кнопка «Назад» на пульті, `backward` — крок назад по екранах.
+`tvctl log` і `devices` показують час у часовому поясі компʼютера (Lampac у Docker пише UTC).
 Звіти: `req` (запити до джерел — і нативні на Android), `noty` (повідомлення Lampa), `player_start`,
 `activity`, `error`, `result`.
 

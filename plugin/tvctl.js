@@ -79,12 +79,22 @@
         return a || {};
     }
 
+    function controller() {
+        var c = window.Lampa && Lampa.Controller && Lampa.Controller.enabled ? Lampa.Controller.enabled() : null;
+        return c && c.name ? c.name : '';
+    }
+
+    /* The layer the remote works in right now: select boxes, settings, dialogs, the side menu and the header
+       are rendered outside the activity, so items/click follow the active controller, not only the screen. */
     function root() {
-        /* select boxes (source, filter, player choice) are rendered outside the activity */
-        if (document.body.classList.contains('selectbox--open')) {
-            var sb = document.querySelector('.selectbox');
-            if (sb) return sb;
-        }
+        var body = document.body.classList;
+        var name = controller();
+        var pick = function (selector) { return document.querySelector(selector); };
+        if (body.contains('selectbox--open') && pick('.selectbox')) return pick('.selectbox');
+        if (body.contains('settings--open') && pick('.settings')) return pick('.settings');
+        if (name === 'modal' && pick('.modal')) return pick('.modal');
+        if ((name === 'menu' || body.contains('menu--open')) && pick('.menu')) return pick('.menu');
+        if (name === 'head' && pick('.head')) return pick('.head');
         var a = activity();
         var r = a.activity && a.activity.render ? a.activity.render() : null;
         r = r && r[0] ? r[0] : r;
@@ -111,6 +121,7 @@
             title: a.title || '',
             card: card.id ? { id: card.id, title: card.title || card.name, original: card.original_title || card.original_name } : null,
             focus: text(focus),
+            controller: controller(),
             items: items().length
         };
     }
@@ -138,9 +149,18 @@
                 (c.keys || []).forEach(function (k) {
                     if (MOVES[k]) Lampa.Controller.move(MOVES[k]);
                     else if (k === 'enter') Lampa.Controller.enter();
-                    else if (k === 'back') Lampa.Activity.backward();
+                    /* like the Back button of the remote: closes settings, menus, dialogs, then goes back */
+                    else if (k === 'back') Lampa.Controller.back();
+                    else if (k === 'backward') Lampa.Activity.backward();
                 });
                 res.state = state();
+            } else if (c.cmd === 'settings') {
+                Lampa.Controller.toggle('settings');
+                res.state = state();
+            } else if (c.cmd === 'home') {
+                /* the same activity the side menu opens */
+                var src = Lampa.Storage.field('source');
+                Lampa.Activity.push({ url: '', title: Lampa.Lang.translate('title_main') + ' - ' + String(src).toUpperCase(), component: 'main', source: src });
             } else if (c.cmd === 'open') {
                 var type = c.type === 'movie' ? 'movie' : 'tv';
                 var source = c.source || 'tmdb';
