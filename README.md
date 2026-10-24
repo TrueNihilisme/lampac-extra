@@ -19,6 +19,10 @@
 
 **Службові**
 - `EX.TvCtl` + плагін `tvctl.js` + утиліта `tvctl` — пульт для Lampa: відкрити картку, джерело, серію з компʼютера і бачити, що відбувається (які запити пішли до джерел, з якою помилкою, чи стартував плеєр)
+- `EX.Mcp` + плагін `lampac-mcp.js` — [головна з рядів ШІ](#rows): ряди формує ШІ через сервер [lampac-mcp](https://github.com/TrueNihilisme/lampac-mcp)
+
+**Вигляд**
+- [Теми](#themes) `tokyo-night-theme.js` і `apple-tv-theme.js`
 
 Чим відрізняються від вбудованих: вбудовані AnimeON і Mikai шукають тайтл за назвою і часто показують зайве
 (для «Фрірен» — ще й «Початок після кінця»). `EX.*` з сервісом [`animap`](#animap) (є в репозиторії) показують лише сезони цієї картки.
@@ -201,6 +205,40 @@ export LAMPAC_PASSWD=...            # root-пароль Lampac, файл <Lampac
 Безпека: телевізор опитує `/tvctl/poll` і шле `/tvctl/report` без пароля; надсилати команди
 й читати журнал можна лише з root-паролем Lampac.
 
+### <a id="rows"></a>Головна з рядів ШІ (`EX.Mcp` + `lampac-mcp.js`)
+
+![Головна з рядів ШІ](docs/img/main-rows.jpg)
+
+Головний екран Lampa складається з рядів, які формує ШІ: вертикальні й широкі (16:9) картки чергуються —
+фільми, серіали, мультфільми, аніме. Ряди і їхній склад ШІ задає через MCP-сервер
+[lampac-mcp](https://github.com/TrueNihilisme/lampac-mcp); Lampa отримує лише ідентифікатори TMDB,
+а постери, кадри й описи бере через власне джерело TMDB (той самий проксі), з кешем на добу.
+Ряди Lampa та інших плагінів («Продовжити перегляд», виходи серій) — унизу, після рядів ШІ.
+Без рядів або без сервера показується звичайна головна TMDB.
+
+1. Запустіть [lampac-mcp](https://github.com/TrueNihilisme/lampac-mcp).
+2. Підключіть модуль `EX.Mcp` і вкажіть адресу фіду в `init.conf`:
+   `"EX.Mcp": { "collectionUrl": "http://АДРЕСА-LAMPAC-MCP:8787/api/collection" }`.
+   Lampa бере фід через Lampac (`/mcp/collection`) — той самий домен, без CORS і змішаного http/https.
+3. Скопіюйте `plugin/lampac-mcp.js` у `<Lampac>/wwwroot/custom/` і підключіть як плагін.
+
+Плагін працює і на старих ТВ (ES5). Якщо плагін прийшов, коли головна вже побудована
+(так буває на Android TV), він один раз оновлює екран.
+
+### <a id="themes"></a>Теми
+
+| Tokyo Night | Apple TV |
+|---|---|
+| ![Tokyo Night](docs/img/theme-tokyo-night.jpg) | ![Apple TV](docs/img/theme-apple-tv.jpg) |
+
+- `tokyo-night-theme.js` — лише кольори: палітра [Tokyo Night](https://github.com/tokyo-night/tokyo-night-vscode-theme), акцент на вибір.
+- `apple-tv-theme.js` — темний стиль tvOS: білий заокруглений фокус, «підйом» картки з тінню або рамка, акцент на вибір.
+
+Вмикаються в Налаштуваннях Lampa (кожна — окремий пункт), без перезапуску; одночасно активна лише одна.
+ES5 і `-webkit-`, без зовнішніх шрифтів і запитів — перевірено на Samsung Tizen 4.0 і Android TV,
+звідси «(Tizen 4)» у назві. Підключення — як будь-який плагін: файл у `<Lampac>/wwwroot/custom/`
+і запис у `LampaWeb.customPlugins` або Налаштування → Розширення.
+
 ### Ліцензія
 
 Репозиторій поширюється за **GNU AGPL-3.0** (файл [`LICENSE`](LICENSE)).
@@ -208,7 +246,9 @@ export LAMPAC_PASSWD=...            # root-пароль Lampac, файл <Lampac
 `EX.AnimeON`, `EX.Mikai`, `EX.MoonAnime` — змінені версії модулів з
 [Lampac NextGen](https://github.com/lampac-nextgen/lampac) (AGPL-3.0), тому успадковують її умови.
 Змінено: 2026-10-22 (докладно — в історії комітів).
-`EX.TvCtl`, `tvctl.js`, `tvctl` і `animap` написані окремо.
+`EX.TvCtl`, `tvctl.js`, `tvctl`, `animap`, `EX.Mcp`, `lampac-mcp.js` і теми написані окремо.
+Палітра Tokyo Night — від [enkia](https://github.com/tokyo-night/tokyo-night-vscode-theme) (MIT).
+Тема «Apple TV» не повʼязана з Apple; назва лише описує стиль.
 
 ---
 
@@ -219,6 +259,8 @@ Additional online modules for Lampac NextGen. Prefix `EX.` and routes `lite/ex_*
 - `EX.AnimeON`, `EX.Mikai` — anime sources that pick the exact title by MAL id when the [`animap`](#animap) service (included, `animap/animap.py`, Python stdlib only) is configured
 - `EX.MoonAnime` — MoonAnime through the account API (`token` in `init.conf`), direct HLS/webm links, no browser
 - `EX.TvCtl` + `plugin/tvctl.js` + `tools/tvctl` — remote control and diagnostics for Lampa (open a card / source / episode, see balancer requests, Lampa messages, player start)
+- `EX.Mcp` + `plugin/lampac-mcp.js` — Lampa main screen made of AI-managed rows (poster and wide 16:9 cards alternate) served by the [lampac-mcp](https://github.com/TrueNihilisme/lampac-mcp) MCP server; set `"EX.Mcp": { "collectionUrl": "http://LAMPAC-MCP:8787/api/collection" }` in `init.conf`
+- `plugin/tokyo-night-theme.js`, `plugin/apple-tv-theme.js` — colour themes (Tokyo Night palette; dark tvOS-like style), ES5, toggled in Lampa settings, one active at a time; tested on Samsung Tizen 4.0 and Android TV
 
 Install: add the repository to `module/repository.yaml` (see above) or run
 
@@ -238,4 +280,6 @@ Licensed under the **GNU AGPL-3.0** (see [`LICENSE`](LICENSE)).
 `EX.AnimeON`, `EX.Mikai` and `EX.MoonAnime` are modified versions of modules from
 [Lampac NextGen](https://github.com/lampac-nextgen/lampac) (AGPL-3.0) and inherit its terms.
 Modified: 2026-10-22 (see the commit history for details).
-`EX.TvCtl`, `tvctl.js`, `tvctl` and `animap` are original to this repository.
+`EX.TvCtl`, `tvctl.js`, `tvctl`, `animap`, `EX.Mcp`, `lampac-mcp.js` and the themes are original to this repository.
+The Tokyo Night palette is by [enkia](https://github.com/tokyo-night/tokyo-night-vscode-theme) (MIT).
+The "Apple TV" theme is not affiliated with Apple; the name only describes the style.
