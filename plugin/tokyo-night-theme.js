@@ -1,6 +1,6 @@
 /* Lampa plugin: Tokyo Night colour theme.
  *
- * Palette: Tokyo Night by enkia (https://github.com/enkia/tokyo-night-vscode-theme, MIT).
+ * Palette: Tokyo Night by enkia (https://github.com/tokyo-night/tokyo-night-vscode-theme, MIT).
  * Only colours are changed: Lampa's layout, navigation and other plugins stay as they are.
  *
  * - ES5 and -webkit- prefixes only, so it runs on old TV engines (Tizen 4, webOS 4, Android 7 WebView).
