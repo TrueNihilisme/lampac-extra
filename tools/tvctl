@@ -17,9 +17,18 @@ set -eu
 : "${LAMPAC_PASSWD:?set LAMPAC_PASSWD (Lampac root password)}"
 api() { curl -fsS --cookie "accspasswd=$LAMPAC_PASSWD" "$@"; }
 
+# Lampac (in Docker) writes times in UTC; show them in the local time zone of this computer.
+utc2local() {
+  awk -v off="$(date +%z)" 'BEGIN { s = substr(off, 1, 1) == "-" ? -1 : 1; o = s * (substr(off, 2, 2) * 3600 + substr(off, 4, 2) * 60) }
+  { if (match($0, /[0-9][0-9]:[0-9][0-9]:[0-9][0-9]/)) { t = substr($0, RSTART, 8)
+      x = (substr(t, 1, 2) * 3600 + substr(t, 4, 2) * 60 + substr(t, 7, 2) + o + 86400) % 86400
+      $0 = substr($0, 1, RSTART - 1) sprintf("%02d:%02d:%02d", int(x / 3600), int((x % 3600) / 60), x % 60) substr($0, RSTART + 8) }
+    print }'
+}
+
 case "${1:-}" in
-  devices) api "$LAMPAC/tvctl/devices"; echo ;;
-  log)     api "$LAMPAC/tvctl/log?last=${2:-30}"; echo ;;
+  devices) api "$LAMPAC/tvctl/devices" | utc2local; echo ;;
+  log)     api "$LAMPAC/tvctl/log?last=${2:-30}" | utc2local; echo ;;
   cmd)
     [ -n "${2:-}" ] || { echo "usage: tvctl cmd '<json>' [DEVICE]"; exit 1; }
     dev="${3:-${TVCTL_DEV:-}}"
