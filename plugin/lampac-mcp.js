@@ -1,9 +1,11 @@
-/* Lampa 3+ plugin: adds the AI-managed carousel through the local Lampac route.
+/* Lampa 3+ plugin: the main screen is built from AI-managed rows instead of the TMDB rows.
  *
- * The feed (/mcp/collection, module EX.Mcp) only lists TMDB ids. Details for the wide
- * cards (16:9 backdrop, localized title, overview, rating) are fetched with Lampa's
- * own TMDB source, i.e. through the same TMDB proxy Lampa already uses, and cached
- * on the device for a day. ES5 only: Tizen 4 / webOS 4 engines.
+ * The feed (/mcp/collection, module EX.Mcp) lists rows: title, kind, card style
+ * (poster | wide) and TMDB ids. Card details (poster or 16:9 backdrop, localized title,
+ * overview, rating) are fetched with Lampa's own TMDB source, i.e. through the same TMDB
+ * proxy Lampa already uses, and cached on the device for a day. Rows of other plugins
+ * (Lampa.ContentRows, e.g. "Continue watching") stay. Without rows, or when the feed is
+ * unreachable, the usual TMDB main screen is shown. ES5 only: Tizen 4 / webOS 4 engines.
  */
 (function () {
     'use strict';
@@ -93,7 +95,7 @@
         } catch (e) { finish(null); }
     }
 
-    function card(item, d) {
+    function card(item, d, wide) {
         var c = { id: item.id, source: 'tmdb', media_type: item.media_type };
         var title = (d && d.title) || item.title;
         if (item.media_type === 'tv') {
@@ -115,12 +117,14 @@
 
         /* Lampa 3 wide card (same as its own "In top" rows): 16:9 backdrop w780,
            title and overview drawn over it; falls back to the poster without a backdrop */
-        c.params = { style: { name: 'wide' } };
+        if (wide) c.params = { style: { name: 'wide' } };
         return c;
     }
 
-    function build(collection, complete) {
-        var items = Array.isArray(collection.items) ? collection.items : [];
+    /* One row of the main screen, in the shape Lampa's own TMDB rows have. */
+    function buildRow(row, complete) {
+        var items = Array.isArray(row.items) ? row.items : [];
+        var wide = row.style === 'wide';
         var cache = readCache();
         var left = items.length;
         var found = [];
@@ -128,15 +132,10 @@
         function emit() {
             writeCache(cache);
             var results = [];
-            for (var i = 0; i < items.length; i++) results.push(card(items[i], found[i]));
-            complete({
-                title: collection.title || 'AI picks',
-                results: results,
-                params: { items: { view: 3 } },
-                page: 1,
-                total_pages: 1,
-                total_results: results.length
-            });
+            for (var i = 0; i < items.length; i++) results.push(card(items[i], found[i], wide));
+            var line = { title: row.title || 'AI picks', results: results, page: 1, total_pages: 1, total_results: results.length };
+            if (wide) line.params = { items: { view: 3 } };
+            complete(line);
         }
 
         if (!left) return emit();
@@ -148,36 +147,64 @@
         });
     }
 
-    function addRow() {
-        if (!window.Lampa || !Lampa.ContentRows || !Lampa.ContentRows.add) return;
+    var PARTS_LIMIT = 6;
+    var called = false;
+
+    /* Replaces Lampa.Api.sources.tmdb.main. Returns the "load more rows" function Lampa expects
+       synchronously, although the feed arrives later. */
+    function install() {
+        if (!window.Lampa || !Lampa.Api || !Lampa.Api.sources || !Lampa.Api.partNext) return;
         if (Lampa.Manifest && Number(Lampa.Manifest.app_digital) < 300) return;
 
-        Lampa.ContentRows.add({
-            name: 'lampac_mcp_ai_picks',
-            title: 'Топ аніме Hikka',
-            index: 1,
-            screen: ['main', 'category'],
-            call: function () {
-                called = true;
-                return function (complete) {
-                    loadCollection(function (collection) { build(collection, complete); });
-                };
+        var tmdb = Lampa.Api.sources.tmdb;
+        var original = tmdb.main;
+
+        tmdb.main = function (params, oncomplite, onerror) {
+            params = params || {};
+            called = true;
+            var delegate = null;
+            var parts = null;
+            var pending = null;
+
+            function next(partLoaded, partEmpty) {
+                if (delegate) return delegate(partLoaded, partEmpty);
+                if (!parts) { pending = [partLoaded, partEmpty]; return; }
+                Lampa.Api.partNext(parts, PARTS_LIMIT, partLoaded, partEmpty);
             }
-        });
+
+            loadCollection(function (feed) {
+                var rows = (Array.isArray(feed.rows) ? feed.rows : []).filter(function (row) {
+                    return row && Array.isArray(row.items) && row.items.length;
+                });
+                if (!rows.length) delegate = original.call(tmdb, params, oncomplite, onerror);
+                else {
+                    parts = rows.map(function (row) {
+                        return function (call) { buildRow(row, call); };
+                    });
+                    Lampa.ContentRows.call('main', params, parts);
+                    Lampa.Api.partNext(parts, PARTS_LIMIT, oncomplite, onerror);
+                }
+                if (pending) {
+                    var wait = pending;
+                    pending = null;
+                    next(wait[0], wait[1]);
+                }
+            });
+
+            return next;
+        };
 
         /* Plugins arrive after Lampa is ready; on some devices (Android TV) the start screen is
-           already built by then and ContentRows is asked only while building a screen. If our
-           row was not requested, rebuild the visible main/category screen once. */
+           already built by then. If our main was not asked for, rebuild the visible main screen once. */
         setTimeout(function () {
             if (called) return;
             var active = Lampa.Activity && Lampa.Activity.active ? Lampa.Activity.active() : null;
-            if (active && (active.component === 'main' || active.component === 'category')) Lampa.Activity.refresh();
+            if (active && active.component === 'main') Lampa.Activity.refresh();
         }, 1500);
     }
-    var called = false;
 
-    if (window.appready) addRow();
+    if (window.appready) install();
     else if (window.Lampa && Lampa.Listener) Lampa.Listener.follow('app', function (event) {
-        if (event && event.type === 'ready') addRow();
+        if (event && event.type === 'ready') install();
     });
 })();
