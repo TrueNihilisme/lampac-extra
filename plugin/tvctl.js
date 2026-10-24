@@ -176,9 +176,26 @@
                 res.plugins = (Lampa.Plugins && Lampa.Plugins.get ? Lampa.Plugins.get() : []).map(function (p) {
                     return { url: p && p.url, status: p && p.status, name: p && p.name };
                 });
+                /* what Lampa failed to load at this start (the "(…)" list of its notice) */
+                res.errors = Lampa.Plugins && Lampa.Plugins.errors ? Lampa.Plugins.errors() : null;
+                res.awaits = Lampa.Plugins && Lampa.Plugins.awaits ? Lampa.Plugins.awaits() : null;
+                /* the raw stored list: shows whether removals reach localStorage on this device */
+                try {
+                    var raw = JSON.parse(localStorage.getItem('plugins') || '[]');
+                    res.raw = (raw instanceof Array ? raw : []).map(function (p) { return p === null ? 'NULL-ITEM' : (typeof p === 'string' ? p : p && p.url); });
+                } catch (e) { res.raw = 'unreadable: ' + e.message; }
+                /* plugins of a CUB account are loaded too, from a cached list when CUB does not answer */
+                var acc = Lampa.Storage.get('account', '{}') || {};
+                var cached = Lampa.Storage.get('account_plugins', '[]') || [];
+                res.account = {
+                    account_use: !!(window.lampa_settings && window.lampa_settings.account_use),
+                    has_token: !!acc.token,
+                    cached_plugins: (cached instanceof Array ? cached : []).map(function (p) { return { url: p && p.url, status: p && p.status }; })
+                };
             } else if (c.cmd === 'plugins_prune') {
                 /* remove stored plugins without an address (Lampa reports them as "not loaded" at every start) */
-                var bad = (Lampa.Plugins.get() || []).filter(function (p) { return !p || !p.url; });
+                /* the address can be the string "null", so check the format, not just presence */
+                var bad = (Lampa.Plugins.get() || []).filter(function (p) { return !p || !/^(https?:)?\/\/|^\.\//.test(String(p.url || '')); });
                 bad.forEach(function (p) { Lampa.Plugins.remove(p); });
                 if (bad.length && Lampa.Plugins.save) Lampa.Plugins.save();
                 res.removed = bad.length;
