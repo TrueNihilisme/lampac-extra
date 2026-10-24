@@ -167,8 +167,22 @@
                     gap: sup('gap', '1px'),
                     aspect_ratio: sup('aspect-ratio', '1'),
                     clip_text: sup('-webkit-background-clip', 'text'),
-                    screen: window.innerWidth + 'x' + window.innerHeight + '@' + (window.devicePixelRatio || 1)
+                    screen: window.innerWidth + 'x' + window.innerHeight + '@' + (window.devicePixelRatio || 1),
+                    /* which loader build runs: a part present here was loaded by the current plugin list */
+                    src_filter: !!window.lampac_src_filter_plugin
                 };
+            } else if (c.cmd === 'plugins') {
+                /* plugins stored on the device: Lampa loads these at start and names the failed ones */
+                res.plugins = (Lampa.Plugins && Lampa.Plugins.get ? Lampa.Plugins.get() : []).map(function (p) {
+                    return { url: p && p.url, status: p && p.status, name: p && p.name };
+                });
+            } else if (c.cmd === 'plugins_prune') {
+                /* remove stored plugins without an address (Lampa reports them as "not loaded" at every start) */
+                var bad = (Lampa.Plugins.get() || []).filter(function (p) { return !p || !p.url; });
+                bad.forEach(function (p) { Lampa.Plugins.remove(p); });
+                if (bad.length && Lampa.Plugins.save) Lampa.Plugins.save();
+                res.removed = bad.length;
+                res.left = (Lampa.Plugins.get() || []).length;
             } else if (c.cmd === 'settings') {
                 Lampa.Controller.toggle('settings');
                 res.state = state();
