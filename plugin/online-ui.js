@@ -74,8 +74,13 @@
         online_ui_order: { uk: 'Порядок', en: 'Order', ru: 'Порядок' },
         online_ui_order_up: { uk: 'Від першої', en: 'First to last', ru: 'С первой' },
         online_ui_order_down: { uk: 'Від останньої', en: 'Last to first', ru: 'С последней' },
-        online_ui_find: { uk: 'Знайти серію', en: 'Find episode', ru: 'Найти серию' }
+        online_ui_find: { uk: 'Знайти серію', en: 'Find episode', ru: 'Найти серию' },
+        online_ui_page_next: { uk: 'Наступні', en: 'Next', ru: 'Следующие' },
+        online_ui_page_prev: { uk: 'Попередні', en: 'Previous', ru: 'Предыдущие' }
     });
+
+    /* cards on screen at once: long seasons (Bleach has 366 episodes on TMDB) made Tizen 4 crawl */
+    var PAGE_SIZE = 20;
 
     var KEY_VIEW = 'online_ui_view';
 
@@ -180,7 +185,8 @@
             var parts = text(orig.querySelector('.online-prestige__info')).split('●');
             for (var p = 0; p < parts.length; p++) if (parts[p].trim()) info.push(parts[p].trim());
         }
-        var number = text(orig.querySelector('.online-prestige__episode-number'));
+        var number = orig.__oui_number || text(orig.querySelector('.online-prestige__episode-number'));
+        var src = orig.__oui_src || (img && img.getAttribute('src')) || '';
         return {
             kind: orig.classList.contains('online-prestige-watched') ? 'continue'
                 : orig.classList.contains('online-prestige--folder') ? 'folder' : 'file',
@@ -192,7 +198,7 @@
             number: number,
             quality: text(orig.querySelector('.online-prestige__quality')),
             info: info,
-            image: img && img.getAttribute('src') && img.naturalWidth !== 0 ? img.src : '',
+            image: src.indexOf('img_broken') === -1 ? src : '',
             viewed: !!orig.querySelector('.online-prestige__viewed'),
             percent: line ? parseFloat(line.style.width) || 0 : 0
         };
@@ -235,8 +241,14 @@
 
     function carryAnimeSeason(event) {
         var movie = event.data && event.data.movie;
-        var hint = movie && movie.id && animeHints[animeKey(movie)];
-        if (!hint) return;
+        if (!movie || !movie.id) return;
+        var hint = animeHints[animeKey(movie)];
+        if (!hint) {
+            /* Lampa may hand out the same cached TMDB object again: no stale season from an earlier opening */
+            delete movie.anime_season;
+            delete movie.anime_episode_offset;
+            return;
+        }
         movie.anime_season = hint.season;
         movie.anime_episode_offset = hint.offset;
     }
@@ -266,6 +278,20 @@
             out.push(e);
         }
         return out;
+    }
+
+    /* Lampa cuts TMDB's season 1 where the air dates have a gap of over 90 days (for anime that TMDB keeps as one
+       long season) and hands out only the first part: Avatar's season 1 has 20 episodes, the cut leaves 13, and a
+       source with all 20 had no stills or names after the 13th. The whole season is kept in episodes_original. */
+    function fullSeason(page, data, map) {
+        var cut = data.episodes || [];
+        var whole = data.episodes_original;
+        if (!whole || whole.length <= cut.length) return cut;
+        if (map && map.offset) return whole;      /* a later part of a long season: counted from the start */
+        var max = 0;
+        var items = page.items || [];
+        for (var i = 0; i < items.length; i++) max = Math.max(max, parseInt(items[i].episode, 10) || 0);
+        return max > cut.length ? whole : cut;
     }
 
     function episodeData(page, number) {
@@ -301,8 +327,59 @@
         return tags;
     }
 
-    function buildCard(page, orig) {
-        var d = readItem(orig);
+    /* every original element in display order with its data. The originals are hidden, so their stills are
+       stopped (only the cards on screen load one), and the episode numbers online.js adds only after a still
+       has loaded are taken from the items it drew. */
+    function collect(page) {
+        var originals = page.origBody.querySelectorAll('.online-prestige');
+        var serial = !!(page.object.movie && page.object.movie.name);
+        var items = page.items || [];
+        var episodes = page.episodes || [];
+        var drawn = 0;
+        for (var i = 0; i < originals.length; i++) if (isFileOrig(originals[i]) && originals[i].style.opacity !== '0.5') drawn++;
+        /* this list came from draw(items), not from similars() or an error screen */
+        var mapped = serial && items.length === drawn;
+        var out = [], f = 0, extra = 0;
+        for (var j = 0; j < originals.length; j++) {
+            var orig = originals[j];
+            if (orig.classList.contains('online-prestige-watched')) continue;
+            releaseStill(orig);
+            if (mapped && isFileOrig(orig)) {
+                var n = orig.style.opacity === '0.5'
+                    ? (episodes[items.length + extra++] || {}).episode_number
+                    : (items[f++] || {}).episode || f;
+                if (n) orig.__oui_number = (n < 10 ? '0' : '') + n;
+            }
+            var d = readItem(orig);
+            /* online.js adds the TMDB episodes the source does not have as "coming". Only the ones with a date
+               ahead are (online.js then puts "days left" into the quality field); the rest are simply missing in
+               the source, hundreds of them for a long anime */
+            if (d.future && !d.quality) continue;
+            out.push({ orig: orig, data: d });
+        }
+        return out;
+    }
+
+    function isFileOrig(orig) {
+        return !orig.classList.contains('online-prestige-watched') && !orig.classList.contains('online-prestige--folder');
+    }
+
+    function releaseStill(orig) {
+        var img = orig.querySelector('.online-prestige__img img');
+        if (!img || !img.getAttribute('src')) return;
+        orig.__oui_src = img.getAttribute('src');
+        img.onload = img.onerror = null;
+        img.removeAttribute('src');
+    }
+
+    /* a card is rebuilt only when what it shows has changed: no reloading stills on every redraw */
+    function buildCard(page, orig, d) {
+        d = d || readItem(orig);
+        var sig = JSON.stringify(d) + '|' + (page.sourceTitle || '') + '|' + (page.episodes || []).length;
+        if (orig.__oui_card && orig.__oui_sig === sig) {
+            orig.__oui_card.classList.remove('focus');
+            return orig.__oui_card;
+        }
         var card = el('div', 'oui-card selector oui-card--' + d.kind + (d.future ? ' oui-card--future' : ''));
 
         if (d.kind === 'file') {
@@ -347,6 +424,8 @@
                 page.scroll.update($(card), true);
             });
         card.__oui_orig = orig;
+        orig.__oui_card = card;
+        orig.__oui_sig = sig;
         return card;
     }
 
@@ -383,48 +462,128 @@
     /* online.js redrew its list (new season, voice, source, or results arrived): redraw ours */
     function rebuild(page) {
         page.pending = false;
-        var originals = page.origBody.querySelectorAll('.online-prestige');
-        var list = page.list;
         var lastOrig = page.last && page.last.__oui_orig;
-
+        var lastPager = page.last && page.last.__oui_pager;
         var keepPlay = page.last === page.play;
-
-        while (list.firstChild) list.removeChild(list.firstChild);
-        page.cards = [];
-        var files = [];
-
-        if (!originals.length) renderState(page);
         page.sourceTitle = choice(page).source;
-        var order = [];
-        for (var i = 0; i < originals.length; i++) {
-            /* online.js's "continue / no history" row: the big button in the header replaces it */
-            if (!originals[i].classList.contains('online-prestige-watched')) order.push(originals[i]);
-        }
-        if (page.object.__oui_reverse) order.reverse();
 
-        for (var o = 0; o < order.length; o++) {
-            var card = buildCard(page, order[o]);
-            page.cards.push(card);
-            list.appendChild(card);
-            var data = readItem(order[o]);
-            if (data.kind === 'file' && !data.future) files.push({ orig: order[o], data: data });
-        }
+        /* online.js's "continue / no history" row is left out: the big button in the header replaces it */
+        var entries = collect(page);
+        if (page.object.__oui_reverse) entries.reverse();
+        var same = !!(page.entries && entries.length && page.entries.length === entries.length && page.entries[0].orig === entries[0].orig);
+        /* while online.js was searching the page had no cards and Lampa put the focus on the first pill;
+           that is not a choice to keep once the list is there */
+        var wasEmpty = !page.entries || !page.entries.length;
+        page.entries = entries;
+
+        var files = [];
+        for (var i = 0; i < entries.length; i++) if (entries[i].data.kind === 'file' && !entries[i].data.future) files.push(entries[i]);
         /* the header logic (continue / next / progress) always works in episode order */
         if (page.object.__oui_reverse) files.reverse();
+        page.files = files;
         updateHero(page, files);
 
-        var lastChip = page.last && page.last.__oui_key ? page.last : null;
+        /* a new list opens on the page with the episode the big button plays; a redraw of the same list stays */
+        if (!same) page.offset = pageOf(page, page.playTarget);
+        renderPage(page);
+
+        var lastChip = page.last && page.last.__oui_key && !(wasEmpty && entries.length) ? page.last : null;
         page.last = keepPlay && page.playTarget ? page.play : lastChip;
         updateChips(page, files);
+        if (lastPager && page.pagers[lastPager]) page.last = page.pagers[lastPager];
         if (lastOrig) for (var j = 0; j < page.cards.length; j++) if (page.cards[j].__oui_orig === lastOrig) page.last = page.cards[j];
 
         /* the remote is on this page: point it at the new elements */
         if (Lampa.Controller.enabled().name === 'content' && activePage() === page) focusPage(page);
     }
 
+    function pageOf(page, orig) {
+        for (var i = 0; i < page.entries.length; i++) if (page.entries[i].orig === orig) return i - i % PAGE_SIZE;
+        return 0;
+    }
+
+    /* one page of cards, with "previous" / "next" cards around it */
+    function renderPage(page) {
+        var list = page.list;
+        while (list.firstChild) list.removeChild(list.firstChild);
+        page.cards = [];
+        page.pagers = {};
+        var entries = page.entries || [];
+        if (!entries.length) {
+            if (!page.origBody.querySelector('.online-prestige:not(.online-prestige-watched)')) renderState(page);
+            return;
+        }
+        var lastPage = (entries.length - 1) - (entries.length - 1) % PAGE_SIZE;
+        page.offset = Math.max(0, Math.min(page.offset || 0, lastPage));
+        var end = Math.min(page.offset + PAGE_SIZE, entries.length);
+
+        if (page.offset > 0) addPager(page, -1);
+        for (var i = page.offset; i < end; i++) {
+            var card = buildCard(page, entries[i].orig, entries[i].data);
+            page.cards.push(card);
+            list.appendChild(card);
+        }
+        if (end < entries.length) addPager(page, 1);
+    }
+
+    /* "21–40": episode numbers when the cards have them, else positions */
+    function rangeLabel(page, from, to) {
+        var a = page.entries[from].data.episode, b = page.entries[to].data.episode;
+        return a && b ? a + '–' + b : (from + 1) + '–' + (to + 1);
+    }
+
+    function addPager(page, dir) {
+        var start = page.offset + dir * PAGE_SIZE;
+        var end = Math.min(start + PAGE_SIZE, page.entries.length) - 1;
+        var c = el('div', 'oui-card oui-card--pager selector');
+        c.appendChild(el('div', 'oui-card__title', (dir > 0 ? '▼  ' : '▲  ') + T(dir > 0 ? 'online_ui_page_next' : 'online_ui_page_prev') + ' · ' + rangeLabel(page, start, end)));
+        c.__oui_pager = dir;
+        $(c).on('hover:enter', function () {
+            /* going back lands on the last card of the previous page, the way the remote was moving */
+            turnPage(page, start, dir < 0);
+            focusPage(page, page.last);
+        }).on('hover:focus', function () {
+            page.last = c;
+            page.scroll.update($(c), true);
+        });
+        page.pagers[dir] = c;
+        page.cards.push(c);
+        page.list.appendChild(c);
+    }
+
+    /* show the page starting at `offset`; page.last = its first (or last) episode. The caller moves the focus. */
+    function turnPage(page, offset, toLast) {
+        page.offset = offset;
+        renderPage(page);
+        updateChips(page, page.files || []);
+        var first = null, last = null;
+        for (var i = 0; i < page.cards.length; i++) {
+            if (!page.cards[i].__oui_orig) continue;
+            if (!first) first = page.cards[i];
+            last = page.cards[i];
+        }
+        page.last = (toLast ? last : first) || firstFocus(page);
+    }
+
+    /* online.js asks to focus one of its elements (the episode just watched): bring up the page with it */
+    function cardFor(page, orig) {
+        for (var i = 0; i < page.cards.length; i++) if (page.cards[i].__oui_orig === orig) return page.cards[i];
+        var entries = page.entries || [];
+        for (var j = 0; j < entries.length; j++) {
+            if (entries[j].orig !== orig) continue;
+            page.offset = j - j % PAGE_SIZE;
+            renderPage(page);
+            updateChips(page, page.files || []);
+            for (var k = 0; k < page.cards.length; k++) if (page.cards[k].__oui_orig === orig) return page.cards[k];
+        }
+        return null;
+    }
+
     /* where the remote lands on a fresh page: the big button, else the first episode */
     function firstFocus(page) {
-        return page.play && page.play.style.display !== 'none' ? page.play : page.cards[0] || false;
+        if (page.play && page.play.style.display !== 'none') return page.play;
+        for (var i = 0; i < page.cards.length; i++) if (page.cards[i].__oui_orig) return page.cards[i];
+        return page.cards[0] || false;
     }
 
     function focusPage(page, target) {
@@ -640,18 +799,18 @@
             });
         }
 
-        /* long seasons: jump to a block of ten */
-        if (serial && files.length > 12) {
-            chip(page, 'episodes', T('online_ui_episodes'), '1–' + files.length, '', function () {
+        /* long seasons: pick a page */
+        var entries = page.entries || [];
+        if (serial && entries.length > PAGE_SIZE) {
+            var shown = rangeLabel(page, page.offset, Math.min(page.offset + PAGE_SIZE, entries.length) - 1);
+            chip(page, 'episodes', T('online_ui_episodes'), shown, '', function () {
                 var blocks = [];
-                for (var s = 0; s < files.length; s += 10) {
-                    blocks.push({ title: (s + 1) + '–' + Math.min(s + 10, files.length), start: s });
+                for (var s = 0; s < entries.length; s += PAGE_SIZE) {
+                    blocks.push({ title: rangeLabel(page, s, Math.min(s + PAGE_SIZE, entries.length) - 1), start: s, selected: s === page.offset });
                 }
                 openSelect(T('online_ui_episodes'), blocks, function (b) {
-                    var card = null;
-                    for (var c = 0; c < page.cards.length; c++) if (page.cards[c].__oui_orig === files[b.start].orig) card = page.cards[c];
-                    page.last = card;
-                    Lampa.Select.close();
+                    turnPage(page, b.start, false);
+                    Lampa.Select.close();   /* back to "content", which focuses page.last */
                 });
             });
         }
@@ -666,8 +825,10 @@
             chip(page, 'find', '', T('online_ui_find'), SEARCH_ICON, function () {
                 Lampa.Input.edit({ free: true, title: T('online_ui_find'), nosave: true, value: '', layout: 'nums', keyboard: 'lampa' }, function (value) {
                     var wanted = digits(value);
-                    for (var c = 0; c < page.cards.length; c++) {
-                        if (page.cards[c].__oui_orig && readItem(page.cards[c].__oui_orig).episode === wanted) page.last = page.cards[c];
+                    for (var c = 0; c < page.entries.length; c++) {
+                        if (page.entries[c].data.episode !== wanted) continue;
+                        page.last = cardFor(page, page.entries[c].orig) || page.last;
+                        break;
                     }
                     Lampa.Controller.toggle('content');
                 });
@@ -736,10 +897,20 @@
             };
             comp.getEpisodes = function (season, call) {
                 var map = animeSeason(page, season);
-                return getEpisodes.call(this, map ? map.season : season, function (episodes) {
+                var want = map ? map.season : season;
+                var done = function (episodes) {
                     if (map && map.offset) episodes = shiftEpisodes(page, episodes, map.offset);
                     page.episodes = episodes || [];
                     call(page.episodes);
+                };
+                /* the same request online.js makes, but with the whole answer at hand (see fullSeason) */
+                var movie = page.object.movie || {};
+                var tmdbId = ['cub', 'tmdb'].indexOf(movie.source || 'tmdb') === -1 ? movie.tmdb_id : movie.id;
+                if (typeof tmdbId !== 'number' || !movie.name) return getEpisodes.call(this, want, done);
+                Lampa.Api.sources.tmdb.get('tv/' + tmdbId + '/season/' + want, {}, function (data) {
+                    done(fullSeason(page, data, map));
+                }, function () {
+                    done([]);
                 });
             };
             comp.__online_ui = true;
@@ -757,7 +928,8 @@
             page.pending = true;
             setTimeout(function () { if (pages.indexOf(page) !== -1) rebuild(page); }, 120);
         });
-        page.observer.observe(origBody, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'src', 'style'] });
+        /* no 'src': releaseStill() takes the stills off the hidden originals itself */
+        page.observer.observe(origBody, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
         rebuild(page);
     }
 
@@ -979,9 +1151,9 @@
         C.collectionFocus = function (target, html) {
             var page = !redirecting && activePage();
             if (page && (inside(html, page.explorer) || inside(target, page.explorer))) {
-                var mapped = null;
                 var t = nodeOf(target);
-                for (var i = 0; i < page.cards.length; i++) if (page.cards[i].__oui_orig === t) mapped = page.cards[i];
+                var mapped = t ? cardFor(page, t) : null;
+                if (mapped) page.last = mapped;
                 return focus.call(this, mapped || page.last || firstFocus(page), page.root);
             }
             return focus.apply(this, arguments);
@@ -1322,7 +1494,10 @@
             '.oui-card__meta { margin-top: 0.5em; opacity: 0.8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }',
             '.oui-badge { display: inline-block; margin-right: 0.7em; padding: 0.1em 0.5em; font-size: 0.85em; font-weight: 700; ' +
                 '-webkit-border-radius: 0.35em; border-radius: 0.35em; border: 1px solid currentColor; }',
-            '.oui-card--continue, .oui-card--folder { padding: 1em 1.4em; }'
+            '.oui-card--continue, .oui-card--folder { padding: 1em 1.4em; }',
+            '.oui-card--pager { padding: 0.9em 1.4em; -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center; }',
+            '.oui-card--pager .oui-card__title { font-size: 1.05em; opacity: 0.8; }',
+            '.oui-card--pager.focus .oui-card__title { opacity: 1; }'
         ].join('\n');
     }
 
