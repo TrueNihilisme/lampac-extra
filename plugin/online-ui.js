@@ -174,6 +174,12 @@
         var info = [];
         var spans = orig.querySelectorAll('.online-prestige__info > span:not(.online-prestige-split)');
         for (var i = 0; i < spans.length; i++) if (text(spans[i])) info.push(text(spans[i]));
+        /* folders (online.js similars(): JackTor's torrents, search results) put plain text between the
+           "●" splits, no spans: "2022 ● toloka / 1080p / 2.47 GB / SDR / H.265 / ↑3" */
+        if (!info.length) {
+            var parts = text(orig.querySelector('.online-prestige__info')).split('●');
+            for (var p = 0; p < parts.length; p++) if (parts[p].trim()) info.push(parts[p].trim());
+        }
         var number = text(orig.querySelector('.online-prestige__episode-number'));
         return {
             kind: orig.classList.contains('online-prestige-watched') ? 'continue'
@@ -196,6 +202,70 @@
     function minutes(time) {
         var m = String(time || '').match(/(\d+):(\d+)/);
         return m ? parseInt(m[1], 10) * 60 + parseInt(m[2], 10) : 0;
+    }
+
+    /* ---- anime sequels ----
+     * TMDB keeps an anime sequel as a season of the main show, the online sources often call it "season 1":
+     * UaFlix has "Bleach: Thousand-Year Blood War" as season 1, episodes 1–48, on TMDB it is tv/30984 season 2.
+     * online.js then takes the stills, names and dates from TMDB season 1 (the 2004 series).
+     * A card from a list can carry the right TMDB season (anime_season, anime_episode_offset; an anime
+     * catalogue maps them by MAL id). Lampa replaces the activity's card with fresh TMDB data before
+     * "full: complite" (there object.card === data.movie, the fields are gone), so the hint is taken when
+     * the card is opened (watchAnimeCards) and put back on data.movie, the object online.js gets.
+     * Known limit: a source that numbers the seasons like TMDB and is opened from a sequel card shows
+     * the sequel's stills on the other seasons too. */
+    var animeHints = {};
+
+    function animeKey(card) {
+        return card.id + '|' + (card.name ? 'tv' : 'movie');
+    }
+
+    function watchAnimeCards() {
+        var push = Lampa.Activity.push;
+        Lampa.Activity.push = function (object) {
+            var card = object && object.component === 'full' && object.card;
+            if (card && card.id) {
+                if (card.anime_season !== undefined && card.anime_season !== null) {
+                    animeHints[animeKey(card)] = { season: card.anime_season, offset: card.anime_episode_offset || 0 };
+                } else delete animeHints[animeKey(card)];     /* the same title opened from search etc.: no hint */
+            }
+            return push.apply(this, arguments);
+        };
+    }
+
+    function carryAnimeSeason(event) {
+        var movie = event.data && event.data.movie;
+        var hint = movie && movie.id && animeHints[animeKey(movie)];
+        if (!hint) return;
+        movie.anime_season = hint.season;
+        movie.anime_episode_offset = hint.offset;
+    }
+
+    /* which TMDB season to read for the season the source is showing */
+    function animeSeason(page, season) {
+        var movie = page.object.movie || {};
+        if (movie.anime_season === undefined || movie.anime_season === null) return null;
+        var offset = movie.anime_episode_offset || 0;
+        if (parseInt(season, 10) === movie.anime_season && !offset) return null;
+        return { season: movie.anime_season, offset: offset };
+    }
+
+    /* the part starts at TMDB episode offset+1. Shift only when the source numbers it from 1 (all its
+       numbers fit in the rest of the season); UaFlix numbers the whole season 1–48, there it stays as is. */
+    function shiftEpisodes(page, episodes, offset) {
+        var max = 0;
+        var items = page.items || [];
+        for (var i = 0; i < items.length; i++) max = Math.max(max, parseInt(items[i].episode, 10) || 0);
+        if (!episodes || !max || max > episodes.length - offset) return episodes;
+        var out = [];
+        for (var j = 0; j < episodes.length; j++) {
+            if (episodes[j].episode_number <= offset) continue;
+            var e = {};
+            for (var k in episodes[j]) if (episodes[j].hasOwnProperty(k)) e[k] = episodes[j][k];
+            e.episode_number -= offset;
+            out.push(e);
+        }
+        return out;
     }
 
     function episodeData(page, number) {
@@ -344,7 +414,7 @@
         updateHero(page, files);
 
         var lastChip = page.last && page.last.__oui_key ? page.last : null;
-        page.last = keepPlay ? page.play : lastChip;
+        page.last = keepPlay && page.playTarget ? page.play : lastChip;
         updateChips(page, files);
         if (lastOrig) for (var j = 0; j < page.cards.length; j++) if (page.cards[j].__oui_orig === lastOrig) page.last = page.cards[j];
 
@@ -487,6 +557,9 @@
 
         page.playTarget = target ? target.orig : null;
         page.play.style.display = target ? '' : 'none';
+        /* hidden = not a .selector either: Lampa's navigator cannot move away from a 0×0 element, and the remote
+           got stuck on it on JackTor's list of torrents (folders, nothing to play yet) */
+        page.play.classList.toggle('selector', !!target);
         var where = '';
         if (target && serial) {
             var ep = digits(target.data.number) || files.indexOf(target) + 1;
@@ -655,10 +728,18 @@
         var comp = object.activity && object.activity.component;
         if (comp && typeof comp.getEpisodes === 'function' && !comp.__online_ui) {
             var getEpisodes = comp.getEpisodes;
+            var draw = comp.draw;
+            /* the source's episode numbers, for shiftEpisodes() */
+            if (typeof draw === 'function') comp.draw = function (items) {
+                page.items = items || [];
+                return draw.apply(this, arguments);
+            };
             comp.getEpisodes = function (season, call) {
-                return getEpisodes.call(this, season, function (episodes) {
+                var map = animeSeason(page, season);
+                return getEpisodes.call(this, map ? map.season : season, function (episodes) {
+                    if (map && map.offset) episodes = shiftEpisodes(page, episodes, map.offset);
                     page.episodes = episodes || [];
-                    call(episodes);
+                    call(page.episodes);
                 });
             };
             comp.__online_ui = true;
@@ -1302,8 +1383,11 @@
             }
         });
 
+        watchAnimeCards();
         Lampa.Listener.follow('full', function (event) {
-            if (event.type === 'complite' && isOn()) decorateFull(event);
+            if (event.type !== 'complite') return;
+            carryAnimeSeason(event);
+            if (isOn()) decorateFull(event);
         });
     }
 
