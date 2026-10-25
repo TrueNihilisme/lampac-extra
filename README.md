@@ -253,15 +253,18 @@ ES5 і `-webkit-`, без зовнішніх шрифтів і запитів �
 
 Не кольори, а інша розкладка екранів:
 
-- **Головна** — велика шапка з кадром, назвою, рейтингом і описом картки, на якій зараз пульт.
+- **Головна** — велика шапка з кадром, назвою, рейтингом і описом картки, на якій зараз пульт;
+  ряди як док macOS: скляна полиця, картка у фокусі й сусіди трохи збільшуються.
 - **Картка фільму/серіалу** — кадр на всю ширину, логотип TMDB замість назви, пігулки рейтингу й віку,
-  одна головна кнопка «Дивитися» / «Продовжити · S1 E4» (з історії переглядів), скляні секції.
+  одна головна кнопка «Дивитися» / «Продовжити · S1 E4» (з історії переглядів), док акторів по центру
+  (фото росте у фокусі, під ним ім'я й роль, Enter — сторінка актора), скляні секції.
 - **«Онлайн» (Lampac `online.js`)** — шапка з кнопкою «Дивитися / Продовжити / Наступна · S1 E5»,
   «Переглянуто X з Y», окремі пігулки «Джерело», «Сезон», «Переклад», «Серії», «Порядок», «Знайти серію»,
   серії списком або плиткою (4 в ряд), мітки (якість, «Нова», «Вийде …», «залишилось N хв», ✓, UA/SUB).
   `online.js` лишається «двигуном»: шукає, перемикає, відтворює й веде історію — новий екран лише показує
   його дані й передає натискання, тож перегляд працює як раніше.
-- **Меню, налаштування, списки вибору, діалоги, пошук, плеєр Lampa** — плаваючі скляні панелі й кнопки.
+- **Меню, налаштування, списки вибору, діалоги, пошук, плеєр Lampa** — плаваючі скляні панелі й кнопки:
+  кожен пункт бічного меню — окрема пігулка, шапка — плаваюча скляна смуга на кшталт рядка меню macOS.
 
 Кольори дає тема з цього набору (Apple TV або Plex); вмикається разом із нею
 (Налаштування → «Новий вигляд Lampa» → «Разом з темою» / «Завжди» / «Вимкнено»).
@@ -291,7 +294,7 @@ Additional online modules for Lampac NextGen. Prefix `EX.` and routes `lite/ex_*
 - `EX.TvCtl` + `plugin/tvctl.js` + `tools/tvctl` — remote control and diagnostics for Lampa (open a card / source / episode, see balancer requests, Lampa messages, player start)
 - `EX.Mcp` + `plugin/lampac-mcp.js` — Lampa main screen made of AI-managed rows (poster and wide 16:9 cards alternate) served by the [lampac-mcp](https://github.com/TrueNihilisme/lampac-mcp) MCP server; set `"EX.Mcp": { "collectionUrl": "http://LAMPAC-MCP:8787/api/collection" }` in `init.conf`
 - `plugin/tokyo-night-theme.js`, `plugin/apple-tv-theme.js`, `plugin/plex-theme.js` — colour themes (Tokyo Night palette; dark tvOS-like style; charcoal with one amber accent), ES5, toggled in Lampa settings, one active at a time; tested on Samsung Tizen 4.0 and Android TV
-- `plugin/online-ui.js` — a new layout for Lampa ([screenshots](#look)): a home header following the focused card, a movie card with the still across the width and the TMDB logo, a new screen for Lampac's "Online" page (header with Watch / Continue / Next, separate source / season / audio / episodes pills, list or grid, episode labels) while `online.js` keeps doing the searching and playback, and glass menu, settings, lists, search and player. On together with the Apple TV or Plex theme; no requests of its own
+- `plugin/online-ui.js` — a new layout for Lampa ([screenshots](#look)): a home header following the focused card, rows shown as a macOS-like dock, a movie card with the still across the width, the TMDB logo and a centred cast dock, a new screen for Lampac's "Online" page (header with Watch / Continue / Next, separate source / season / audio / episodes pills, list or grid, episode labels) while `online.js` keeps doing the searching and playback, and a glass header bar, menu pills, settings, lists, search and player. On together with the Apple TV or Plex theme; no requests of its own
 
 Install: add the repository to `module/repository.yaml` (see above) or run
 

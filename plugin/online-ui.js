@@ -723,7 +723,93 @@
         if (play && last && last.episode) {
             play.textContent = T('online_ui_continue') + ' · ' + (last.season ? 'S' + last.season + ' ' : '') + 'E' + last.episode;
         }
+
+        buildDock(event, fs);
     }
+
+    /* A macOS-like dock of the cast under the card's buttons: round photos, the focused one grows and shows
+     * name and role, its neighbours grow a little. The cast comes with the card (data.persons.cast), Enter opens
+     * the actor the way Lampa itself does. Inserted inside the `complite` handler, i.e. before Lampa collects
+     * the card's elements for the remote. */
+    function buildDock(event, fs) {
+        var body = fs.querySelector('.full-start-new__body');
+        var persons = event.data && event.data.persons;
+        var cast = ((persons && persons.cast) || []).filter(function (p) { return p && p.profile_path; }).slice(0, 12);
+        if (!body || !cast.length) return;
+
+        var dock = el('div', 'oui-dock');
+        cast.forEach(function (person) {
+            var item = el('div', 'oui-dock__item selector');
+            var img = el('img');
+            img.alt = '';
+            img.src = Lampa.TMDB.image('t/p/w185' + person.profile_path);
+            item.appendChild(img);
+            var label = el('div', 'oui-dock__label');
+            label.appendChild(el('div', 'oui-dock__name', person.name || ''));
+            if (person.character) label.appendChild(el('div', 'oui-dock__role', person.character));
+            item.appendChild(label);
+            $(item).on('hover:enter', function () {
+                Lampa.Activity.push({
+                    url: '', title: Lampa.Lang.translate('title_person'), component: 'actor',
+                    id: person.id, source: (event.object && event.object.source) || 'tmdb'
+                });
+            });
+            dock.appendChild(item);
+        });
+        /* its own full-width line inside the card's first block (so Lampa collects it for the remote),
+           the dock itself centred on the screen */
+        var wrap = el('div', 'oui-dock-wrap');
+        wrap.appendChild(dock);
+        body.appendChild(wrap);
+    }
+
+    /* home rows as a dock: the cards next to the focused one grow a little (class oui-near) */
+    document.addEventListener('hover:focus', function (event) {
+        var card = event.target;
+        if (!card || !card.classList || !card.classList.contains('card')) return;
+        for (var i = 0; i < spots.length; i++) {
+            if (!spots[i].host.contains(card)) continue;
+            var old = spots[i].host.querySelectorAll('.card.oui-near');
+            for (var j = 0; j < old.length; j++) old[j].classList.remove('oui-near');
+            var prev = card.previousElementSibling, next = card.nextElementSibling;
+            if (prev && prev.classList.contains('card')) prev.classList.add('oui-near');
+            if (next && next.classList.contains('card')) next.classList.add('oui-near');
+        }
+    }, true);
+
+    /* The dock is centred on the screen, so from the wide "play" pill on the left Lampa's spatial navigation
+     * finds nothing straight below and jumps to the next section. Down on a card button therefore goes to the
+     * dock item nearest horizontally. Capturing on window runs before Lampa's own key handling. */
+    window.addEventListener('keydown', function (event) {
+        if (event.keyCode !== 40 || !isOn()) return;
+        var focused = document.querySelector('.oui-fs .full-start-new__buttons .focus');
+        var fs = focused && focused.closest ? focused.closest('.oui-fs') : null;
+        var items = fs ? fs.querySelectorAll('.oui-dock__item') : [];
+        if (!items.length) return;
+        var from = focused.getBoundingClientRect();
+        var x = from.left + from.width / 2;
+        var best = null, gap = Infinity;
+        for (var i = 0; i < items.length; i++) {
+            var r = items[i].getBoundingClientRect();
+            var d = Math.abs(r.left + r.width / 2 - x);
+            if (d < gap) { gap = d; best = items[i]; }
+        }
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        Lampa.Controller.collectionFocus(best, fs);
+    }, true);
+
+    /* neighbours of the focused dock item grow a little; leaving the dock resets them */
+    document.addEventListener('hover:focus', function (event) {
+        var docks = document.querySelectorAll('.oui-dock');
+        for (var d = 0; d < docks.length; d++) {
+            var items = docks[d].children;
+            for (var i = 0; i < items.length; i++) {
+                var near = items[i] !== event.target && (items[i].nextSibling === event.target || items[i].previousSibling === event.target);
+                items[i].classList.toggle('oui-dock__item--near', near);
+            }
+        }
+    }, true);
 
     /* ---- home screen (component `main`): a large header showing the card the remote is on ----
      * Lampa keeps a card's data on its element (card.card_data: title, dates, backdrop, rating, overview).
@@ -828,7 +914,8 @@
     function panelsCss() {
         var g = 'body.oui-on';
         var sheets = [g + ' .settings .settings__content', g + ' .selectbox .selectbox__content'];
-        var panels = sheets.concat([g + ' .wrap__left .menu', g + ' .modal .modal__content']);
+        /* the header capsule is glass too; the side menu is not a panel any more: each item is its own pill */
+        var panels = sheets.concat([g + ' .modal .modal__content', g + ' .head .head__body']);
         var lift = '0 1.6em 3.2em rgba(0, 0, 0, 0.55)';
         return [
             panels.join(', ') + ' { background: rgba(30, 30, 34, 0.84) !important; border: 1px solid rgba(255, 255, 255, 0.12); ' +
@@ -842,12 +929,20 @@
                 '-webkit-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), ' + lift + '; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), ' + lift + '; }',
             g + ' .settings__head, ' + g + ' .selectbox__head { border-bottom-color: rgba(255, 255, 255, 0.1) !important; }',
             g + ' .settings-folder, ' + g + ' .settings-param, ' + g + ' .selectbox-item { margin: 0 0.6em; -webkit-border-radius: 1em; border-radius: 1em; }',
-            /* side menu: a floating column instead of a full-height strip */
-            g + ' .wrap__left .menu { margin: 0.6em 0 0.6em 0.6em; padding: 0.6em 0.6em 0.6em 0; -webkit-border-radius: 1.6em; border-radius: 1.6em; }',
-            g + ' .menu__item { -webkit-border-radius: 1em; border-radius: 1em; }',
+            /* side menu: no strip behind it, every item is its own glass pill (focus colour comes from the theme) */
+            g + ' .wrap__left .menu { background: transparent; padding: 0.6em 0.4em 0.6em 0.6em; }',
+            g + ' .wrap__left .menu__item { margin: 0 0 0.5em; padding: 0.75em 1.3em; -webkit-border-radius: 2em; border-radius: 2em; ' +
+                'background-color: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.1); ' +
+                '-webkit-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 0.4em 1em rgba(0, 0, 0, 0.25); ' +
+                'box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 0.4em 1em rgba(0, 0, 0, 0.25); }',
             g + ' .modal .modal__content { -webkit-border-radius: 1.6em; border-radius: 1.6em; }',
-            /* header buttons as round glass buttons */
-            g + ' .head__action { -webkit-border-radius: 50%; border-radius: 50%; background-color: rgba(255, 255, 255, 0.08); margin-left: 0.4em; }',
+            /* header as a floating glass capsule, like a macOS menu bar: smaller title, buttons and clock */
+            g + ' .head .head__body { margin: 0.55em 0.9em 0; padding: 0.3em 0.8em 0.3em 0.6em; -webkit-border-radius: 1.6em; border-radius: 1.6em; }',
+            g + ' .head__logo-icon { width: 2.1em; margin-right: 0.8em; }',
+            g + ' .head__title { font-size: 1.3em; font-weight: 600; }',
+            g + ' .head__action { width: 2.3em; height: 2.3em; padding: 0.5em; margin-left: 0.5em; -webkit-border-radius: 50%; border-radius: 50%; ' +
+                'background-color: rgba(255, 255, 255, 0.08); }',
+            g + ' .head__time { font-size: 0.8em; margin-left: 1em; margin-top: 0; }',
             /* search: glass keys, white focus, sources and history as pills */
             g + ' .simple-keyboard .hg-button { -webkit-border-radius: 1em; border-radius: 1em; background: rgba(255, 255, 255, 0.08); ' +
                 'border: 1px solid rgba(255, 255, 255, 0.08); -webkit-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14); }',
@@ -903,9 +998,33 @@
             playerCss(),
 
             /* ---- home screen header ---- */
-            '.oui-spot { position: relative; height: 42vh; overflow: hidden; }',
+            '.oui-spot { position: relative; height: 42vh; }',
+            /* the still reaches up under the glass header bar (which is otherwise over an empty page) */
+            '.oui-spot__art { top: -6em !important; }',
             /* the rows share the screen with the header: cards are sized in em, so a smaller font scales them */
             '.oui-main > .scroll .items-line__body { font-size: 0.72em; }',
+            /* rows as a dock: a glass shelf under the cards, the focused card grows from its bottom edge and
+               its neighbours a little; room above for the growth, the shelf behind the lower part of the cards */
+            '.oui-main .items-line__body { position: relative; }',
+            '.oui-main .items-line__body::before { content: ""; position: absolute; left: 1.2em; right: 1.2em; bottom: 0.3em; height: 42%; ' +
+                '-webkit-border-radius: 1.6em; border-radius: 1.6em; pointer-events: none; ' +
+                'background: -webkit-linear-gradient(top, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.04)); ' +
+                'background: linear-gradient(to bottom, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.04)); ' +
+                'border: 1px solid rgba(255, 255, 255, 0.14); ' +
+                '-webkit-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 1em 2.4em rgba(0, 0, 0, 0.45); ' +
+                'box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 1em 2.4em rgba(0, 0, 0, 0.45); }',
+            '.oui-main .items-line__body > .scroll { position: relative; z-index: 1; }',
+            '.oui-main .items-line__body .scroll--horizontal .scroll__content { padding-top: 2.4em; padding-bottom: 1.4em; }',
+            '.oui-main .card .card__view { -webkit-transform-origin: 50% 100%; transform-origin: 50% 100%; ' +
+                '-webkit-transition: -webkit-transform 0.15s ease-out; transition: transform 0.15s ease-out; }',
+            'body.oui-on .oui-main .card.oui-near .card__view { -webkit-transform: scale(1.05); transform: scale(1.05); }',
+            'body.oui-on .oui-main .card.focus .card__view { -webkit-transform: scale(1.13); transform: scale(1.13); }',
+            /* the focused card always on top of its neighbours; wide 16:9 cards grow less, they are already big */
+            '.oui-main .card { position: relative; }',
+            '.oui-main .card.oui-near { z-index: 2; }',
+            '.oui-main .card.focus { z-index: 3; }',
+            'body.oui-on .oui-main .card--wide.oui-near .card__view { -webkit-transform: scale(1.02); transform: scale(1.02); }',
+            'body.oui-on .oui-main .card--wide.focus .card__view { -webkit-transform: scale(1.06); transform: scale(1.06); }',
             '.oui-spot__art { position: absolute; top: 0; left: 0; right: 0; bottom: 0; ' +
                 '-webkit-mask-image: -webkit-linear-gradient(top, #000 60%, rgba(0, 0, 0, 0) 100%); ' +
                 'mask-image: linear-gradient(to bottom, #000 60%, rgba(0, 0, 0, 0) 100%); }',
@@ -924,7 +1043,7 @@
                 'display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }',
 
             /* ---- movie/series card ---- */
-            '.oui-fullpage .full-start__background { left: 0; width: 100%; height: 100%; top: 0; ' +
+            '.oui-fullpage .full-start__background { left: 0; width: 100%; height: calc(100% + 6em); top: -6em; ' +
                 '-webkit-mask-image: -webkit-linear-gradient(top, #000 50%, rgba(0, 0, 0, 0) 100%); ' +
                 'mask-image: linear-gradient(to bottom, #000 50%, rgba(0, 0, 0, 0) 100%); ' +
                 '-webkit-mask-size: auto; mask-size: auto; }',
@@ -958,6 +1077,32 @@
             '.oui-fs .full-start-new__buttons .full-start__button.button--play:not(.focus) span { display: inline; }',
             '.oui-fs .full-start-new__buttons .full-start__button.focus { background: #fff; color: #000; ' +
                 '-webkit-transform: scale(1.05); transform: scale(1.05); }',
+            /* the cast dock, centred on the screen */
+            '.oui-fs .full-start-new__body { -webkit-flex-wrap: wrap; flex-wrap: wrap; }',
+            '.oui-dock-wrap { position: relative; width: 100%; text-align: center; margin-top: 1.6em; }',
+            '.oui-dock { display: -webkit-inline-box; display: -webkit-inline-flex; display: inline-flex; text-align: left; ' +
+                '-webkit-box-align: end; -webkit-align-items: flex-end; align-items: flex-end; padding: 0.55em 0.8em; ' +
+                '-webkit-border-radius: 2em; border-radius: 2em; background: rgba(30, 30, 34, 0.6); border: 1px solid rgba(255, 255, 255, 0.12); ' +
+                '-webkit-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 0.8em 2em rgba(0, 0, 0, 0.4); ' +
+                'box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 0.8em 2em rgba(0, 0, 0, 0.4); }',
+            '@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {\n.oui-dock { background: rgba(30, 30, 34, 0.35); ' +
+                '-webkit-backdrop-filter: blur(1.6em) saturate(1.8); backdrop-filter: blur(1.6em) saturate(1.8); }\n}',
+            '.oui-dock__item { position: relative; width: 3.8em; height: 3.8em; margin: 0 0.3em; -webkit-border-radius: 50%; border-radius: 50%; ' +
+                '-webkit-transform-origin: 50% 100%; transform-origin: 50% 100%; ' +
+                '-webkit-transition: -webkit-transform 0.15s ease-out; transition: transform 0.15s ease-out; }',
+            '.oui-dock__item > img { width: 100%; height: 100%; object-fit: cover; -webkit-border-radius: 50%; border-radius: 50%; ' +
+                'border: 2px solid rgba(255, 255, 255, 0.25); -webkit-box-shadow: 0 0.3em 0.8em rgba(0, 0, 0, 0.45); box-shadow: 0 0.3em 0.8em rgba(0, 0, 0, 0.45); }',
+            '.oui-dock__item--near { -webkit-transform: scale(1.18); transform: scale(1.18); }',
+            '.oui-dock__item.focus { z-index: 2; -webkit-transform: scale(1.5); transform: scale(1.5); }',
+            '.oui-dock__item.focus > img { border-color: #fff; }',
+            /* the name goes under the dock (above it would cover the buttons) */
+            '.oui-dock__label { display: none; position: absolute; top: 100%; left: 50%; margin-top: 1.1em; padding: 0.25em 0.7em; ' +
+                '-webkit-transform: translateX(-50%); transform: translateX(-50%); white-space: nowrap; text-align: center; font-size: 0.55em; ' +
+                '-webkit-border-radius: 0.8em; border-radius: 0.8em; background: rgba(20, 20, 24, 0.88); color: #fff; border: 1px solid rgba(255, 255, 255, 0.12); }',
+            '.oui-dock__item.focus .oui-dock__label { display: block; }',
+            '.oui-dock__name { font-weight: 700; }',
+            '.oui-dock__role { opacity: 0.7; }',
+
             /* sections under the header: the same glass language as the "Online" screen */
             '.oui-fullpage .full-descr__tag { -webkit-border-radius: 2em; border-radius: 2em; background: rgba(255, 255, 255, 0.12); ' +
                 'border: 1px solid rgba(255, 255, 255, 0.14); -webkit-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25); }',
