@@ -188,12 +188,18 @@
 
         /* menu, settings, lists, dialogs under the new look: solid charcoal sheets with crisp corners, no glass */
         var p = b + '.oui-on';
-        var sheets = [p + ' .settings .settings__content', p + ' .selectbox .selectbox__content', p + ' .wrap__left .menu', p + ' .modal .modal__content'];
+        var sheets = [p + ' .settings .settings__content', p + ' .selectbox .selectbox__content', p + ' .modal .modal__content', p + ' .head .head__body'];
         rules.push(
             sheets.join(', ') + ' { background: ' + C.panel + ' !important; border-color: ' + C.line + '; ' +
                 '-webkit-backdrop-filter: none; backdrop-filter: none; -webkit-border-radius: 0.6em; border-radius: 0.6em; }',
-            p + ' .settings-folder, ' + p + ' .settings-param, ' + p + ' .selectbox-item, ' + p + ' .menu__item { -webkit-border-radius: 0.35em; border-radius: 0.35em; }',
-            p + ' .head__action { background-color: ' + C.raised + '; }'
+            p + ' .settings-folder, ' + p + ' .settings-param, ' + p + ' .selectbox-item { -webkit-border-radius: 0.35em; border-radius: 0.35em; }',
+            /* side menu items: solid charcoal tiles with crisp corners instead of glass pills */
+            p + ' .wrap__left .menu__item { -webkit-border-radius: 0.4em; border-radius: 0.4em; background-color: ' + C.panel + '; ' +
+                'border-color: ' + C.line + '; -webkit-box-shadow: none; box-shadow: none; }',
+            p + ' .head__action { background-color: ' + C.raised + '; }',
+            /* the shelf under the home rows: a flat charcoal plinth */
+            p + ' .oui-main .items-line__body::before { background: rgba(38, 41, 45, 0.9); border-color: ' + C.line + '; ' +
+                '-webkit-border-radius: 0.5em; border-radius: 0.5em; -webkit-box-shadow: none; box-shadow: none; }'
         );
 
         if (focus === 'lift') {
