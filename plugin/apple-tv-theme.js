@@ -8,6 +8,8 @@
  * - ES5 and -webkit- prefixes only, so it runs on old TV engines (Tizen 4, webOS 4, Android 7 WebView).
  * - No external fonts, images or requests; no backdrop-filter (too slow on TV boxes).
  * - Every rule is scoped under body.theme--apple-tv, so switching off removes it completely.
+ * - With the plugin online-ui.js (the new look of the cards, home, "Online" page, panels and player)
+ *   this theme also colours that look: see ouiCss().
  * - Shares the key `lampa_theme_active` with other theme plugins of this repo:
  *   enabling one theme switches the others off.
  *
@@ -163,7 +165,33 @@
             );
         }
 
+        rules = rules.concat(ouiCss(a));
+
         return rules.join('\n');
+    }
+
+    /* The new look (plugin online-ui.js: class .oui and body.oui-on): tvOS colours on top of it. The page already lies on a blurred
+     * still, so episode cards are glass by translucency alone; real backdrop-filter only on the pills and the
+     * play button over the header art, and only where the engine has it (not Tizen 4). */
+    function ouiCss(a) {
+        var o = 'body.' + BODY_CLASS + ' .oui';
+        return [
+            /* under the new look the page is not flat black: a faint cool glow from the top left, as on tvOS */
+            'body.' + BODY_CLASS + '.oui-on { background: #000 -webkit-radial-gradient(20% 0%, ellipse cover, #1b2130 0%, #07080b 55%, #000 100%) !important; ' +
+                'background: radial-gradient(120% 80% at 20% 0%, #1b2130 0%, #07080b 55%, #000 100%) !important; }',
+            o + ' .oui-card { -webkit-border-radius: 1.4em; border-radius: 1.4em; ' +
+                '-webkit-transition: -webkit-transform 0.15s ease-out; transition: transform 0.15s ease-out; }',
+            o + ' .oui-card__thumb { -webkit-border-radius: 1em; border-radius: 1em; }',
+            o + ' .oui-card.focus { background: rgba(255, 255, 255, 0.95); -webkit-transform: scale(1.02); transform: scale(1.02); ' +
+                '-webkit-box-shadow: 0 1.2em 2.4em rgba(0, 0, 0, 0.45); box-shadow: 0 1.2em 2.4em rgba(0, 0, 0, 0.45); }',
+            o + ' .oui-progress__bar > div, ' + o + ' .oui-card__bar > div { background: ' + a + '; }',
+            o + ' .oui-tag--left { background: ' + a + '; }',
+            o + ' .oui-play, ' + o + ' .oui-chip { -webkit-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), inset 0 0 0 1px rgba(255, 255, 255, 0.08); ' +
+                'box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), inset 0 0 0 1px rgba(255, 255, 255, 0.08); }',
+            '@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {\n' +
+                o + ' .oui-play:not(.focus), ' + o + ' .oui-chip:not(.focus) { background: rgba(255, 255, 255, 0.12); ' +
+                '-webkit-backdrop-filter: blur(1.6em) saturate(1.8); backdrop-filter: blur(1.6em) saturate(1.8); }\n}'
+        ];
     }
 
     function apply() {
