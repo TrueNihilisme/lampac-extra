@@ -263,11 +263,10 @@ ES5 і `-webkit-`, без зовнішніх шрифтів і запитів �
   серії списком або плиткою (4 в ряд), мітки (якість, «Нова», «Вийде …», «залишилось N хв», ✓, UA/SUB).
   `online.js` лишається «двигуном»: шукає, перемикає, відтворює й веде історію — новий екран лише показує
   його дані й передає натискання, тож перегляд працює як раніше.
-  Папки (роздачі JackTor, результати пошуку) показуються з рядком даних: трекер, якість, розмір, сиди.
-  Продовження аніме: якщо картка в списку має `anime_season` і `anime_episode_offset` (сезон TMDB і зсув
-  серій, напр. з таблиці [Fribb/anime-lists](https://github.com/Fribb/anime-lists) за MAL ID), кадри, назви
-  й дати серій беруться з цього сезону. Без цього «Bleach: Thousand-Year Blood War», який джерела звуть
-  «сезон 1», показував серії серіалу 2004 року (на TMDB це `tv/30984`, сезон 2).
+  У роздач JackTor видно трекер, якість і розмір.
+  Для продовжень аніме картка може передати `anime_season` і `anime_episode_offset`, тоді серії беруться
+  з цього сезону TMDB. Інакше джерело називає, наприклад, «Bleach: Thousand-Year Blood War» першим сезоном,
+  і показуються серії 2004 року.
 - **Меню, налаштування, списки вибору, діалоги, пошук, плеєр Lampa** — плаваючі скляні панелі й кнопки:
   кожен пункт бічного меню — окрема пігулка, шапка — плаваюча скляна смуга на кшталт рядка меню macOS.
 
@@ -299,7 +298,7 @@ Additional online modules for Lampac NextGen. Prefix `EX.` and routes `lite/ex_*
 - `EX.TvCtl` + `plugin/tvctl.js` + `tools/tvctl` — remote control and diagnostics for Lampa (open a card / source / episode, see balancer requests, Lampa messages, player start)
 - `EX.Mcp` + `plugin/lampac-mcp.js` — Lampa main screen made of AI-managed rows (poster and wide 16:9 cards alternate) served by the [lampac-mcp](https://github.com/TrueNihilisme/lampac-mcp) MCP server; set `"EX.Mcp": { "collectionUrl": "http://LAMPAC-MCP:8787/api/collection" }` in `init.conf`
 - `plugin/tokyo-night-theme.js`, `plugin/apple-tv-theme.js`, `plugin/plex-theme.js` — colour themes (Tokyo Night palette; dark tvOS-like style; charcoal with one amber accent), ES5, toggled in Lampa settings, one active at a time; tested on Samsung Tizen 4.0 and Android TV
-- `plugin/online-ui.js` — a new layout for Lampa ([screenshots](#look)): a home header following the focused card, rows shown as a macOS-like dock, a movie card with the still across the width, the TMDB logo and a centred cast dock, a new screen for Lampac's "Online" page (header with Watch / Continue / Next, separate source / season / audio / episodes pills, list or grid, episode labels) while `online.js` keeps doing the searching and playback, and a glass header bar, menu pills, settings, lists, search and player. Folders (JackTor torrents, search results) keep their tracker / quality / size line; an anime sequel card with `anime_season` / `anime_episode_offset` (TMDB season and episode offset, e.g. from Fribb/anime-lists by MAL ID) gets the stills, names and dates of that TMDB season. On together with the Apple TV or Plex theme; no requests of its own
+- `plugin/online-ui.js` — a new layout for Lampa ([screenshots](#look)): a home header following the focused card, rows shown as a macOS-like dock, a movie card with the still across the width, the TMDB logo and a centred cast dock, a new screen for Lampac's "Online" page (header with Watch / Continue / Next, separate source / season / audio / episodes pills, list or grid, episode labels) while `online.js` keeps doing the searching and playback, and a glass header bar, menu pills, settings, lists, search and player. JackTor torrents show tracker, quality and size; an anime sequel card can pass `anime_season` / `anime_episode_offset` to get the episodes of that TMDB season. On together with the Apple TV or Plex theme; no requests of its own
 
 Install: add the repository to `module/repository.yaml` (see above) or run
 
