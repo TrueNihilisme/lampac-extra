@@ -999,21 +999,30 @@
 
             /* ---- home screen header ---- */
             '.oui-spot { position: relative; height: 42vh; }',
+            /* Lampa's own page background (a blurred still of the focused card, on by default; Settings → Interface)
+               showed through under the header as a bright haze on Samsung. On the home screen the header already
+               shows the still, so Lampa's layer is hidden there; other pages keep it. */
+            'body.oui-on.oui-home .background { opacity: 0 !important; }',
             /* the still reaches up under the glass header bar (which is otherwise over an empty page) */
             '.oui-spot__art { top: -6em !important; }',
             /* the rows share the screen with the header: cards are sized in em, so a smaller font scales them */
             '.oui-main > .scroll .items-line__body { font-size: 0.72em; }',
             /* rows as a dock: a glass shelf under the cards, the focused card grows from its bottom edge and
-               its neighbours a little; room above for the growth, the shelf behind the lower part of the cards */
-            '.oui-main .items-line__body { position: relative; }',
-            '.oui-main .items-line__body::before { content: ""; position: absolute; left: 1.2em; right: 1.2em; bottom: 0.3em; height: 42%; ' +
-                '-webkit-border-radius: 1.6em; border-radius: 1.6em; pointer-events: none; ' +
+               its neighbours a little. The shelf is built from pieces, one behind each poster/wide card (.card):
+               a piece covers its card and the 1em gap to its left (Lampa spaces cards with margin-left: 1em),
+               the first and last pieces are the rounded ends. So the shelf is exactly as long as the row of cards,
+               and rows of other items (episode cards: .card-episode) get none. A row-wide shelf sized in % of the
+               row did not work: rows of episode cards are much taller and it swelled over half the screen. */
+            '.oui-main .card::after { content: ""; position: absolute; left: -1em; right: 0; bottom: -0.9em; height: 42%; z-index: -1; ' +
+                'pointer-events: none; ' +
                 'background: -webkit-linear-gradient(top, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.04)); ' +
                 'background: linear-gradient(to bottom, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.04)); ' +
-                'border: 1px solid rgba(255, 255, 255, 0.14); ' +
-                '-webkit-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 1em 2.4em rgba(0, 0, 0, 0.45); ' +
-                'box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 1em 2.4em rgba(0, 0, 0, 0.45); }',
-            '.oui-main .items-line__body > .scroll { position: relative; z-index: 1; }',
+                'border-top: 1px solid rgba(255, 255, 255, 0.16); border-bottom: 1px solid rgba(255, 255, 255, 0.08); }',
+            '.oui-main .card:first-child::after { left: -0.9em; -webkit-border-radius: 1.4em 0 0 1.4em; border-radius: 1.4em 0 0 1.4em; ' +
+                'border-left: 1px solid rgba(255, 255, 255, 0.12); }',
+            '.oui-main .card:last-child::after { right: -0.9em; -webkit-border-top-right-radius: 1.4em; border-top-right-radius: 1.4em; ' +
+                '-webkit-border-bottom-right-radius: 1.4em; border-bottom-right-radius: 1.4em; border-right: 1px solid rgba(255, 255, 255, 0.12); }',
+            '.oui-main .card:first-child:last-child::after { -webkit-border-radius: 1.4em; border-radius: 1.4em; }',
             '.oui-main .items-line__body .scroll--horizontal .scroll__content { padding-top: 2.4em; padding-bottom: 1.4em; }',
             '.oui-main .card .card__view { -webkit-transform-origin: 50% 100%; transform-origin: 50% 100%; ' +
                 '-webkit-transition: -webkit-transform 0.15s ease-out; transition: transform 0.15s ease-out; }',
@@ -1278,6 +1287,11 @@
             if (COMPONENTS.indexOf(event.component) === -1 || !event.object) return;
             if (event.type === 'start' && isOn()) mount(event.object);
             else if (event.type === 'destroy') unmount(event.object);
+        });
+
+        /* body.oui-home while the home screen is the active page (see the .background rule in css()) */
+        Lampa.Listener.follow('activity', function (event) {
+            if (event.type === 'start') document.body.classList.toggle('oui-home', event.component === 'main');
         });
 
         Lampa.Listener.follow('activity', function (event) {

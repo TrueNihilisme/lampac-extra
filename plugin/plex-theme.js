@@ -197,9 +197,12 @@
             p + ' .wrap__left .menu__item { -webkit-border-radius: 0.4em; border-radius: 0.4em; background-color: ' + C.panel + '; ' +
                 'border-color: ' + C.line + '; -webkit-box-shadow: none; box-shadow: none; }',
             p + ' .head__action { background-color: ' + C.raised + '; }',
-            /* the shelf under the home rows: a flat charcoal plinth */
-            p + ' .oui-main .items-line__body::before { background: rgba(38, 41, 45, 0.9); border-color: ' + C.line + '; ' +
-                '-webkit-border-radius: 0.5em; border-radius: 0.5em; -webkit-box-shadow: none; box-shadow: none; }'
+            /* the shelf under the home rows (pieces behind each card): a flat charcoal plinth with small corners */
+            p + ' .oui-main .card::after { background: rgba(38, 41, 45, 0.9); border-color: ' + C.line + '; }',
+            p + ' .oui-main .card:first-child::after { -webkit-border-radius: 0.4em 0 0 0.4em; border-radius: 0.4em 0 0 0.4em; }',
+            p + ' .oui-main .card:last-child::after { -webkit-border-top-right-radius: 0.4em; border-top-right-radius: 0.4em; ' +
+                '-webkit-border-bottom-right-radius: 0.4em; border-bottom-right-radius: 0.4em; }',
+            p + ' .oui-main .card:first-child:last-child::after { -webkit-border-radius: 0.4em; border-radius: 0.4em; }'
         );
 
         if (focus === 'lift') {
