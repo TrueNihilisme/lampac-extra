@@ -82,7 +82,7 @@ public class ExAnimeONController : BaseOnlineController
                 var exact = search.Value.Where(i => i.MalId != null && map.MalIds.Contains(i.MalId))
                                         .OrderBy(i => map.MalIds.IndexOf(i.MalId)).ToList();
                 if (exact.Count == 1)
-                    return LocalRedirect($"{host}/lite/ex_animeon?rjson={rjson}&s={exact[0].Season}&imdb_id={HttpUtility.UrlEncode(imdb_id)}&title={HttpUtility.UrlEncode(title)}&original_title={HttpUtility.UrlEncode(original_title)}&year={year}&animeid={exact[0].Id}");
+                    return Redirect(accsArgs($"{host}/lite/ex_animeon?rjson={rjson}&s={exact[0].Season}&imdb_id={HttpUtility.UrlEncode(imdb_id)}&title={HttpUtility.UrlEncode(title)}&original_title={HttpUtility.UrlEncode(original_title)}&year={year}&animeid={exact[0].Id}"));
                 if (exact.Count > 1)
                     matched = exact;
                 if (exact.Count == 0)
@@ -90,7 +90,7 @@ public class ExAnimeONController : BaseOnlineController
             }
 
             if (matched.Count == 1 && !string.IsNullOrWhiteSpace(imdb_id) && string.Equals(matched[0].ImdbId, imdb_id, StringComparison.OrdinalIgnoreCase))
-                return LocalRedirect($"{host}/lite/ex_animeon?rjson={rjson}&s={matched[0].Season}&imdb_id={HttpUtility.UrlEncode(imdb_id)}&title={HttpUtility.UrlEncode(title)}&original_title={HttpUtility.UrlEncode(original_title)}&year={year}&animeid={matched[0].Id}");
+                return Redirect(accsArgs($"{host}/lite/ex_animeon?rjson={rjson}&s={matched[0].Season}&imdb_id={HttpUtility.UrlEncode(imdb_id)}&title={HttpUtility.UrlEncode(title)}&original_title={HttpUtility.UrlEncode(original_title)}&year={year}&animeid={matched[0].Id}"));
 
             var stpl = new SimilarTpl(matched.Count);
 
