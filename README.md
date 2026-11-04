@@ -198,7 +198,9 @@ export LAMPAC_PASSWD=...            # root-пароль Lampac, файл <Lampac
 ```
 
 Команди: `state`, `items`, `click {index}`, `key {keys: [up, down, left, right, enter, back, backward]}`,
-`settings`, `home`, `caps` (що підтримує рушій: `backdrop-filter`, `grid` тощо), `plugins` (збережені на пристрої плагіни), `plugins_prune` (прибрати записи без адреси — через них Lampa пише «деякі плагіни не завантажились»), `open {id, type: tv|movie}`, `online {balanser?}`, `reload`.
+`settings`, `home`, `caps` (що підтримує рушій: `backdrop-filter`, `grid` тощо), `plugins` (збережені на пристрої плагіни), `plugins_prune` (прибрати записи без адреси — через них Lampa пише «деякі плагіни не завантажились»), `open {id, type: tv|movie}`, `online {balanser?}`, `reload`,
+плеєр: `play {url, title?}` (увімкнути будь-яку адресу потоку), `media` (позиція й тривалість у секундах — для ефіру на Tizen тривалість 0, пауза, розмір картинки),
+`seek {t}` (перемотати на секунду), `pause`, `resume`.
 `items`/`click` працюють у тому шарі, де зараз пульт: налаштування, список вибору, діалог, меню, шапка або екран;
 `state` показує його ім'я (`controller`). `back` — як кнопка «Назад» на пульті, `backward` — крок назад по екранах.
 `tvctl log` і `devices` показують час у часовому поясі компʼютера (Lampac у Docker пише UTC).

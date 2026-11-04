@@ -226,6 +226,28 @@
                     Lampa.Storage.set('online_balanser', bal);
                 }
                 Lampa.Activity.push(o);
+            } else if (c.cmd === 'play') {
+                /* play any stream address in the Lampa player, e.g. to check a playlist entry or a recording */
+                if (!c.url) throw new Error('url is required');
+                Lampa.Player.play({ title: c.title || c.url, url: c.url });
+            } else if (c.cmd === 'media') {
+                /* what the player reports right now: position and length in seconds (0 for live on Tizen AVPlay),
+                   pause, picture size and the seekable window if the engine has one */
+                var pv = Lampa.PlayerVideo.video();
+                var win = null;
+                try {
+                    if (pv && pv.seekable && pv.seekable.length) win = [pv.seekable.start(0), pv.seekable.end(pv.seekable.length - 1)];
+                } catch (e2) { win = 'error'; }
+                res.media = pv ? { t: pv.currentTime, d: pv.duration, paused: pv.paused, w: pv.videoWidth, h: pv.videoHeight,
+                                   tag: pv.tagName || '', seekable: win } : null;
+                res.state = state();
+            } else if (c.cmd === 'seek') {
+                if (typeof c.t !== 'number') throw new Error('t (seconds) is required');
+                Lampa.PlayerVideo.to(c.t);
+            } else if (c.cmd === 'pause') {
+                Lampa.PlayerVideo.pause();
+            } else if (c.cmd === 'resume') {
+                Lampa.PlayerVideo.play();
             } else if (c.cmd === 'reload') {
                 location.reload();
             } else {
