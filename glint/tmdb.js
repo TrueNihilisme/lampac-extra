@@ -6,8 +6,9 @@
  * adventure; anime is filtered out), Anime (new seasons, best, films, fantasy, comedy, mystery, drama, Ghibli).
  * Rows carry `order` 30+ so Glint puts them after the poster and wide rows of other extensions.
  *
- * Needs a TMDB API key (v3) in the extension's settings. ES5 on purpose: Glint runs extension files as they
- * are on Chromium 56 (Samsung Tizen 4).
+ * Needs either a TMDB API key (v3) or the address of a lampac-mcp server — then requests go through its
+ * GET /api/tmdb/* and the key stays on that server. ES5 on purpose: Glint runs extension files as they are on
+ * Chromium 56 (Samsung Tizen 4).
  */
 (function () {
     'use strict';
@@ -16,9 +17,14 @@
     var genres = null;   // { movie: {id: name}, tv: {id: name} }
     var cache = {};
 
+    function viaMcp(ctx) { return String(ctx.get('mcp') || '').replace(/\/+$/, ''); }
+    function ready(ctx) { return !!(viaMcp(ctx) || ctx.get('key')); }
+
     function api(ctx, path, params) {
-        var base = String(ctx.get('base') || 'https://api.themoviedb.org/3').replace(/\/+$/, '');
-        var q = ['api_key=' + encodeURIComponent(ctx.get('key') || ''), 'language=' + encodeURIComponent(ctx.get('lang') || 'uk-UA')];
+        var mcp = viaMcp(ctx);
+        var base = mcp ? mcp + '/api/tmdb' : String(ctx.get('base') || 'https://api.themoviedb.org/3').replace(/\/+$/, '');
+        var q = ['language=' + encodeURIComponent(ctx.get('lang') || 'uk-UA')];
+        if (!mcp) q.push('api_key=' + encodeURIComponent(ctx.get('key') || ''));
         Object.keys(params || {}).forEach(function (k) { q.push(k + '=' + encodeURIComponent(params[k])); });
         var url = base + path + '?' + q.join('&');
         if (!cache[url]) cache[url] = ctx.getJSON(url).catch(function (e) { delete cache[url]; throw e; });
@@ -148,21 +154,22 @@
         name: 'Добірки TMDB',
         version: '0.1.0',
         settings: [
-            { key: 'key', title: 'Ключ TMDB (API v3)', type: 'text', placeholder: '32 символи з themoviedb.org' },
+            { key: 'mcp', title: 'Адреса lampac-mcp (ключ лишається на сервері)', type: 'text', placeholder: 'http://<host>:8787' },
+            { key: 'key', title: 'Або свій ключ TMDB (API v3)', type: 'text', placeholder: '32 символи з themoviedb.org' },
             { key: 'lang', title: 'Мова', type: 'text', default: 'uk-UA', placeholder: 'uk-UA' },
             { key: 'base', title: 'Адреса API', type: 'text', placeholder: 'https://api.themoviedb.org/3' }
         ],
         rows: function (section, ctx) {
-            if (!ctx.get('key') || !SETS[section]) return Promise.resolve([]);
+            if (!ready(ctx) || !SETS[section]) return Promise.resolve([]);
             return loadGenres(ctx).catch(function () { return null; }).then(function () {
                 return Promise.all(SETS[section](ctx));
             }).then(function (rows) { return rows.filter(Boolean); });
         },
         // the title page: description, genres, runtime, rating, cast, director / creators, seasons
         details: function (item, ctx) {
-            if (!ctx.get('key') || !item.tmdb) return Promise.resolve(null);
+            if (!ready(ctx) || !item.tmdb) return Promise.resolve(null);
             var t = item.tmdb.type === 'tv' ? 'tv' : 'movie';
-            return api(ctx, '/' + t + '/' + item.tmdb.id, { append_to_response: 'credits' }).then(function (d) {
+            return api(ctx, '/' + t + '/' + item.tmdb.id, { append_to_response: 'credits,external_ids' }).then(function (d) {
                 var crew = (d.credits && d.credits.crew) || [];
                 var director = t === 'movie'
                     ? crew.filter(function (c) { return c.job === 'Director'; }).map(function (c) { return c.name; })[0]
@@ -175,6 +182,9 @@
                     rating: d.vote_average,
                     cast: ((d.credits && d.credits.cast) || []).slice(0, 6).map(function (c) { return c.name; }),
                     director: director || '',
+                    original: d.original_title || d.original_name || '',
+                    imdb: (d.external_ids && d.external_ids.imdb_id) || d.imdb_id || '',
+                    lang: d.original_language || '',
                     backdrop: d.backdrop_path ? IMG + 'w1280' + d.backdrop_path : '',
                     seasons: t === 'tv' ? (d.seasons || []).filter(function (s) { return s.season_number > 0; })
                         .map(function (s) { return { n: s.season_number, count: s.episode_count }; }) : null
@@ -182,7 +192,7 @@
             });
         },
         episodes: function (item, season, ctx) {
-            if (!ctx.get('key') || !item.tmdb || item.tmdb.type !== 'tv') return Promise.resolve(null);
+            if (!ready(ctx) || !item.tmdb || item.tmdb.type !== 'tv') return Promise.resolve(null);
             return api(ctx, '/tv/' + item.tmdb.id + '/season/' + season).then(function (d) {
                 return (d.episodes || []).map(function (e) {
                     return { n: e.episode_number, name: e.name, runtime: e.runtime, still: e.still_path ? IMG + 'w300' + e.still_path : '' };
