@@ -165,6 +165,20 @@
                 return Promise.all(SETS[section](ctx));
             }).then(function (rows) { return rows.filter(Boolean); });
         },
+        // search: films and series in two rows
+        search: function (query, ctx) {
+            if (!ready(ctx)) return Promise.resolve([]);
+            return loadGenres(ctx).catch(function () { return null; }).then(function () {
+                return api(ctx, '/search/multi', { query: query, include_adult: 'false' });
+            }).then(function (d) {
+                var res = d.results || [];
+                function pick(type, title) {
+                    var list = res.filter(function (x) { return x.media_type === type && x.poster_path; });
+                    return list.length ? { title: title, style: 'poster', items: list.map(function (x) { return item(x, type, 'poster'); }) } : null;
+                }
+                return [pick('movie', 'Фільми'), pick('tv', 'Серіали')].filter(Boolean);
+            });
+        },
         // the title page: description, genres, runtime, rating, cast, director / creators, seasons
         details: function (item, ctx) {
             if (!ready(ctx) || !item.tmdb) return Promise.resolve(null);
