@@ -14,6 +14,7 @@
  * Commands (JSON): {"cmd":"state"} · {"cmd":"items"} · {"cmd":"click","index":N}
  *   {"cmd":"key","keys":["up","down","left","right","enter","back"]} · {"cmd":"open","id":<tmdb>,"type":"tv|movie"}
  *   {"cmd":"online","balanser":"<name>"} · {"cmd":"reload"}
+ *   {"cmd":"goto","url":"/custom/<page>/"} — open a page of the same Lampac instead of Lampa (back: history.back())
  * Reports: hello, result, req (Lampa requests to /lite/, incl. native Android ones), xhr, noty,
  *   player_start / player_destroy, activity, error.
  *
@@ -250,6 +251,15 @@
                 Lampa.PlayerVideo.play();
             } else if (c.cmd === 'reload') {
                 location.reload();
+            } else if (c.cmd === 'goto') {
+                /* open a page of the same Lampac in place of Lampa (probe pages, other front-ends);
+                   such a page comes back with history.back(). Other hosts are refused. */
+                var url = String(c.url || '');
+                if (url.charAt(0) === '/') url = BASE + url;
+                if (url.indexOf(BASE + '/') !== 0) throw new Error('goto: only pages of this Lampac');
+                res.from = location.href;
+                res.to = url;
+                setTimeout(function () { location.href = url; }, 500);
             } else {
                 throw new Error('unknown command ' + c.cmd);
             }
