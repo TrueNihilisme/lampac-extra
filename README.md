@@ -230,6 +230,19 @@ export LAMPAC_PASSWD=...            # root-пароль Lampac, файл <Lampac
 Плагін працює і на старих ТВ (ES5). Якщо плагін прийшов, коли головна вже побудована
 (так буває на Android TV), він один раз оновлює екран.
 
+### <a id="glint"></a>Розширення для Glint (`glint/`)
+
+[Glint](https://github.com/TrueNihilisme/glint) — окремий ТВ-фронт для Samsung Tizen 4. Ці файли підключаються в ньому
+(Налаштування → Розширення → Додати) за адресою jsDelivr, напр. `https://cdn.jsdelivr.net/gh/TrueNihilisme/lampac-extra@main/glint/tmdb.js`:
+
+| Файл | Що дає |
+|---|---|
+| `tmdb.js` | ряди для розділів (тренди, актор тижня, жанри, студії), опис, сезони, серії, пошук — зі своїм ключем TMDB або через `lampac-mcp` (ключ лишається на сервері) |
+| `lampac-mcp.js` | ряди від ШІ з `lampac-mcp` |
+| `lampac.js` | джерела Lampac: онлайн, озвучки, сезони, серії, RCH (без `eval`) |
+| `iptv.js` | «ТВ → IPTV» з плейлиста M3U, з програмою передач за бажанням |
+| `navidrome.js` | «Музика → Navidrome»: альбоми й плейлисти чергою |
+
 ### <a id="themes"></a>Теми
 
 | Tokyo Night | Apple TV |
@@ -300,6 +313,7 @@ Additional online modules for Lampac NextGen. Prefix `EX.` and routes `lite/ex_*
 - `EX.TvCtl` + `plugin/tvctl.js` + `tools/tvctl` — remote control and diagnostics for Lampa (open a card / source / episode, see balancer requests, Lampa messages, player start)
 - `EX.Mcp` + `plugin/lampac-mcp.js` — Lampa main screen made of AI-managed rows (poster and wide 16:9 cards alternate) served by the [lampac-mcp](https://github.com/TrueNihilisme/lampac-mcp) MCP server; set `"EX.Mcp": { "collectionUrl": "http://LAMPAC-MCP:8787/api/collection" }` in `init.conf`
 - `plugin/tokyo-night-theme.js`, `plugin/apple-tv-theme.js`, `plugin/plex-theme.js` — colour themes (Tokyo Night palette; dark tvOS-like style; charcoal with one amber accent), ES5, toggled in Lampa settings, one active at a time; tested on Samsung Tizen 4.0 and Android TV
+- `glint/*.js` — extensions for [Glint](https://github.com/TrueNihilisme/glint), a TV front-end for Samsung Tizen 4: `tmdb.js` (rows, details, episodes, search; with a TMDB key or through lampac-mcp), `lampac-mcp.js` (AI rows), `lampac.js` (Lampac sources, voices, RCH without eval), `iptv.js` (TV from M3U), `navidrome.js` (music). ES5, loaded by their jsDelivr address
 - `plugin/online-ui.js` — a new layout for Lampa ([screenshots](#look)): a home header following the focused card, rows shown as a macOS-like dock, a movie card with the still across the width, the TMDB logo and a centred cast dock, a new screen for Lampac's "Online" page (header with Watch / Continue / Next, separate source / season / audio / episodes pills, list or grid, episode labels) while `online.js` keeps doing the searching and playback, and a glass header bar, menu pills, settings, lists, search and player. JackTor torrents show tracker, quality and size; an anime sequel card can pass `anime_season` / `anime_episode_offset` to get the episodes of that TMDB season. On together with the Apple TV or Plex theme; no requests of its own
 
 Install: add the repository to `module/repository.yaml` (see above) or run
