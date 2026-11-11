@@ -21,9 +21,6 @@
 - `EX.TvCtl` + плагін `tvctl.js` + утиліта `tvctl` — пульт для Lampa: відкрити картку, джерело, серію з компʼютера і бачити, що відбувається (які запити пішли до джерел, з якою помилкою, чи стартував плеєр)
 - `EX.Mcp` + плагін `lampac-mcp.js` — [головна з рядів ШІ](#rows): ряди формує ШІ через сервер [lampac-mcp](https://github.com/TrueNihilisme/lampac-mcp)
 
-**Вигляд**
-- [Теми](#themes) `tokyo-night-theme.js` і `apple-tv-theme.js`
-
 Чим відрізняються від вбудованих: вбудовані AnimeON і Mikai шукають тайтл за назвою і часто показують зайве
 (для «Фрірен» — ще й «Початок після кінця»). `EX.*` з сервісом [`animap`](#animap) (є в репозиторії) показують лише сезони цієї картки.
 
@@ -243,54 +240,6 @@ export LAMPAC_PASSWD=...            # root-пароль Lampac, файл <Lampac
 | `iptv.js` | «ТВ → IPTV» з плейлиста M3U, з програмою передач за бажанням |
 | `navidrome.js` | «Музика → Navidrome»: альбоми й плейлисти чергою |
 
-### <a id="themes"></a>Теми
-
-| Tokyo Night | Apple TV |
-|---|---|
-| ![Tokyo Night](docs/img/theme-tokyo-night.jpg) | ![Apple TV](docs/img/theme-apple-tv.jpg) |
-
-- `tokyo-night-theme.js` — лише кольори: палітра [Tokyo Night](https://github.com/tokyo-night/tokyo-night-vscode-theme), акцент на вибір.
-- `apple-tv-theme.js` — темний стиль tvOS: білий заокруглений фокус, «підйом» картки з тінню або рамка, акцент на вибір.
-- `plex-theme.js` — графіт і один колір акценту (бурштин або інший на вибір): фокус, рамка постера, прогрес; чіткі дрібні кути.
-
-Вмикаються в Налаштуваннях Lampa (кожна — окремий пункт), без перезапуску; одночасно активна лише одна.
-ES5 і `-webkit-`, без зовнішніх шрифтів і запитів — перевірено на Samsung Tizen 4.0 і Android TV,
-звідси «(Tizen 4)» у назві. Підключення — як будь-який плагін: файл у `<Lampac>/wwwroot/custom/`
-і запис у `LampaWeb.customPlugins` або Налаштування → Розширення.
-
-### <a id="look"></a>Новий вигляд Lampa (`online-ui.js`)
-
-| Головна | Картка |
-|---|---|
-| ![Головна](docs/img/look-home.jpg) | ![Картка](docs/img/look-card.jpg) |
-| **«Онлайн», Apple TV** | **«Онлайн», Plex** |
-| ![Онлайн](docs/img/look-online.jpg) | ![Онлайн, Plex](docs/img/look-online-plex.jpg) |
-
-Не кольори, а інша розкладка екранів:
-
-- **Головна** — велика шапка з кадром, назвою, рейтингом і описом картки, на якій зараз пульт;
-  ряди як док macOS: скляна полиця, картка у фокусі й сусіди трохи збільшуються.
-- **Картка фільму/серіалу** — кадр на всю ширину, логотип TMDB замість назви, пігулки рейтингу й віку,
-  одна головна кнопка «Дивитися» / «Продовжити · S1 E4» (з історії переглядів), док акторів по центру
-  (фото росте у фокусі, під ним ім'я й роль, Enter — сторінка актора), скляні секції.
-- **«Онлайн» (Lampac `online.js`)** — шапка з кнопкою «Дивитися / Продовжити / Наступна · S1 E5»,
-  «Переглянуто X з Y», окремі пігулки «Джерело», «Сезон», «Переклад», «Серії», «Порядок», «Знайти серію»,
-  серії списком або плиткою (4 в ряд), мітки (якість, «Нова», «Вийде …», «залишилось N хв», ✓, UA/SUB).
-  `online.js` лишається «двигуном»: шукає, перемикає, відтворює й веде історію — новий екран лише показує
-  його дані й передає натискання, тож перегляд працює як раніше.
-  У роздач JackTor видно трекер, якість і розмір.
-  Для продовжень аніме картка може передати `anime_season` і `anime_episode_offset`, тоді серії беруться
-  з цього сезону TMDB. Інакше джерело називає, наприклад, «Bleach: Thousand-Year Blood War» першим сезоном,
-  і показуються серії 2004 року.
-- **Меню, налаштування, списки вибору, діалоги, пошук, плеєр Lampa** — плаваючі скляні панелі й кнопки:
-  кожен пункт бічного меню — окрема пігулка, шапка — плаваюча скляна смуга на кшталт рядка меню macOS.
-
-Кольори дає тема з цього набору (Apple TV або Plex); вмикається разом із нею
-(Налаштування → «Новий вигляд Lampa» → «Разом з темою» / «Завжди» / «Вимкнено»).
-Справжнє розмиття (`backdrop-filter`) — лише там, де рушій його вміє (Android TV); на Tizen 4 ті самі
-панелі напівпрозорі. Власних запитів немає: кадри, логотипи й дані серій — ті, що Lampa та `online.js`
-уже завантажили. Ідея сторінки «Онлайн» — за мотивами Nova Skin; код написано окремо.
-
 ### Ліцензія
 
 Репозиторій поширюється за **GNU AGPL-3.0** (файл [`LICENSE`](LICENSE)).
@@ -298,9 +247,7 @@ ES5 і `-webkit-`, без зовнішніх шрифтів і запитів �
 `EX.AnimeON`, `EX.Mikai`, `EX.MoonAnime` — змінені версії модулів з
 [Lampac NextGen](https://github.com/lampac-nextgen/lampac) (AGPL-3.0), тому успадковують її умови.
 Змінено: 2026-10-22 (докладно — в історії комітів).
-`EX.TvCtl`, `tvctl.js`, `tvctl`, `animap`, `EX.Mcp`, `lampac-mcp.js`, `online-ui.js` і теми написані окремо.
-Палітра Tokyo Night — від [enkia](https://github.com/tokyo-night/tokyo-night-vscode-theme) (MIT).
-Теми «Apple TV» і «Plex» не повʼязані з Apple чи Plex; назви лише описують стиль.
+`EX.TvCtl`, `tvctl.js`, `tvctl`, `animap`, `EX.Mcp` і `lampac-mcp.js` написані окремо.
 
 ---
 
@@ -312,9 +259,7 @@ Additional online modules for Lampac NextGen. Prefix `EX.` and routes `lite/ex_*
 - `EX.MoonAnime` — MoonAnime through the account API (`token` in `init.conf`), direct HLS/webm links, no browser
 - `EX.TvCtl` + `plugin/tvctl.js` + `tools/tvctl` — remote control and diagnostics for Lampa (open a card / source / episode, see balancer requests, Lampa messages, player start)
 - `EX.Mcp` + `plugin/lampac-mcp.js` — Lampa main screen made of AI-managed rows (poster and wide 16:9 cards alternate) served by the [lampac-mcp](https://github.com/TrueNihilisme/lampac-mcp) MCP server; set `"EX.Mcp": { "collectionUrl": "http://LAMPAC-MCP:8787/api/collection" }` in `init.conf`
-- `plugin/tokyo-night-theme.js`, `plugin/apple-tv-theme.js`, `plugin/plex-theme.js` — colour themes (Tokyo Night palette; dark tvOS-like style; charcoal with one amber accent), ES5, toggled in Lampa settings, one active at a time; tested on Samsung Tizen 4.0 and Android TV
 - `glint/*.js` — extensions for [Glint](https://github.com/TrueNihilisme/glint), a TV front-end for Samsung Tizen 4: `tmdb.js` (rows, details, episodes, search; with a TMDB key or through lampac-mcp), `lampac-mcp.js` (AI rows), `lampac.js` (Lampac sources, voices, RCH without eval), `iptv.js` (TV from M3U), `navidrome.js` (music). ES5, loaded by their jsDelivr address
-- `plugin/online-ui.js` — a new layout for Lampa ([screenshots](#look)): a home header following the focused card, rows shown as a macOS-like dock, a movie card with the still across the width, the TMDB logo and a centred cast dock, a new screen for Lampac's "Online" page (header with Watch / Continue / Next, separate source / season / audio / episodes pills, list or grid, episode labels) while `online.js` keeps doing the searching and playback, and a glass header bar, menu pills, settings, lists, search and player. JackTor torrents show tracker, quality and size; an anime sequel card can pass `anime_season` / `anime_episode_offset` to get the episodes of that TMDB season. On together with the Apple TV or Plex theme; no requests of its own
 
 Install: add the repository to `module/repository.yaml` (see above) or run
 
@@ -334,6 +279,4 @@ Licensed under the **GNU AGPL-3.0** (see [`LICENSE`](LICENSE)).
 `EX.AnimeON`, `EX.Mikai` and `EX.MoonAnime` are modified versions of modules from
 [Lampac NextGen](https://github.com/lampac-nextgen/lampac) (AGPL-3.0) and inherit its terms.
 Modified: 2026-10-22 (see the commit history for details).
-`EX.TvCtl`, `tvctl.js`, `tvctl`, `animap`, `EX.Mcp`, `lampac-mcp.js`, `online-ui.js` and the themes are original to this repository.
-The Tokyo Night palette is by [enkia](https://github.com/tokyo-night/tokyo-night-vscode-theme) (MIT).
-The "Apple TV" and "Plex" themes are not affiliated with Apple or Plex; the names only describe the style.
+`EX.TvCtl`, `tvctl.js`, `tvctl`, `animap`, `EX.Mcp` and `lampac-mcp.js` are original to this repository.
