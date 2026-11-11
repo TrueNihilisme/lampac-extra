@@ -229,7 +229,8 @@ static class AniMap
         }
     }
 
-    static string Norm(string s) => string.IsNullOrWhiteSpace(s) ? null : new string(s.ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
+    // "×" counts as "x": the same title is written "Spy x Family" in one database and "SPY×FAMILY" in another.
+    static string Norm(string s) => string.IsNullOrWhiteSpace(s) ? null : new string(s.ToLowerInvariant().Replace('×', 'x').Where(char.IsLetterOrDigit).ToArray());
 
     public static async Task<Result> Get(long tmdb, string source, int serial)
     {
@@ -242,7 +243,9 @@ static class AniMap
             if (j.Value<bool?>("ok") != true)
                 return null;
             var r = new Result();
-            foreach (var e in j["entries"])
+            // Real seasons first, specials (TMDB season 0: films, OVA) last: the search title must come
+            // from the series itself, otherwise the source is asked for an OVA and the series is missed.
+            foreach (var e in j["entries"].OrderBy(row => row.Value<int?>("tmdb_season") == 0 ? 1 : 0))
             {
                 string ja = e.Value<string>("title_ja");
                 if (!string.IsNullOrWhiteSpace(ja))

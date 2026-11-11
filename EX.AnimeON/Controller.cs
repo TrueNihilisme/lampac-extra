@@ -81,8 +81,10 @@ public class ExAnimeONController : BaseOnlineController
             {
                 var exact = search.Value.Where(i => i.MalId != null && map.MalIds.Contains(i.MalId))
                                         .OrderBy(i => map.MalIds.IndexOf(i.MalId)).ToList();
+                // A relative LocalRedirect, like the built-in modules do: an absolute "{host}/..." address makes
+                // LocalRedirect throw (HTTP 500) and makes Lampac's own source check leave the server to follow it.
                 if (exact.Count == 1)
-                    return Redirect(accsArgs($"{host}/lite/ex_animeon?rjson={rjson}&s={exact[0].Season}&imdb_id={HttpUtility.UrlEncode(imdb_id)}&title={HttpUtility.UrlEncode(title)}&original_title={HttpUtility.UrlEncode(original_title)}&year={year}&animeid={exact[0].Id}"));
+                    return LocalRedirect(accsArgs($"/lite/ex_animeon?rjson={rjson}&s={exact[0].Season}&imdb_id={HttpUtility.UrlEncode(imdb_id)}&title={HttpUtility.UrlEncode(title)}&original_title={HttpUtility.UrlEncode(original_title)}&year={year}&animeid={exact[0].Id}"));
                 if (exact.Count > 1)
                     matched = exact;
                 if (exact.Count == 0)
@@ -90,7 +92,7 @@ public class ExAnimeONController : BaseOnlineController
             }
 
             if (matched.Count == 1 && !string.IsNullOrWhiteSpace(imdb_id) && string.Equals(matched[0].ImdbId, imdb_id, StringComparison.OrdinalIgnoreCase))
-                return Redirect(accsArgs($"{host}/lite/ex_animeon?rjson={rjson}&s={matched[0].Season}&imdb_id={HttpUtility.UrlEncode(imdb_id)}&title={HttpUtility.UrlEncode(title)}&original_title={HttpUtility.UrlEncode(original_title)}&year={year}&animeid={matched[0].Id}"));
+                return LocalRedirect(accsArgs($"/lite/ex_animeon?rjson={rjson}&s={matched[0].Season}&imdb_id={HttpUtility.UrlEncode(imdb_id)}&title={HttpUtility.UrlEncode(title)}&original_title={HttpUtility.UrlEncode(original_title)}&year={year}&animeid={matched[0].Id}"));
 
             var stpl = new SimilarTpl(matched.Count);
 
@@ -253,7 +255,9 @@ static class AniMap
             if (j.Value<bool?>("ok") != true)
                 return null;
             var r = new Result();
-            foreach (var e in j["entries"])
+            // Real seasons first, specials (TMDB season 0: films, OVA) last: the search title must come
+            // from the series itself, otherwise "Naruto" is searched as "Naruto Movie 1: ...".
+            foreach (var e in j["entries"].OrderBy(row => row.Value<int?>("tmdb_season") == 0 ? 1 : 0))
             {
                 string mal = e.Value<string>("mal_id");
                 if (!string.IsNullOrEmpty(mal))
