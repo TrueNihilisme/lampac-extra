@@ -3,6 +3,7 @@ using Shared;
 using Shared.Attributes;
 using Shared.Models.Base;
 using Shared.Models.Templates;
+using Shared.Services.RxEnumerate;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -164,7 +165,7 @@ public class ExAnimeONController : BaseOnlineController
     rhubFallbackEpisodes:
         var episodes = await InvokeCacheResult<List<EpisodeOption>>($"animeon:episodes:{animeid}:{currentTranslation.PlayerId}:{currentTranslation.TranslationId}", TimeSpan.FromMinutes(40), async e =>
         {
-            var root = await httpHydra.Get<EpisodesResponse>($"{init.host}/api/player/{animeid}/episodes?take=100&skip=-1&playerId={currentTranslation.PlayerId}&translationId={currentTranslation.TranslationId}");
+            var root = await httpHydra.Get<EpisodesResponse>($"{init.host}/api/player/{animeid}/episodes?take=2000&skip=0&playerId={currentTranslation.PlayerId}&translationId={currentTranslation.TranslationId}");
             var items = root?.episodes;
             if (items == null || items.Length == 0)
                 return e.Fail("episodes");
@@ -173,8 +174,8 @@ public class ExAnimeONController : BaseOnlineController
 
             foreach (var node in items)
             {
-                string file = node?.fileUrl;
-                if (string.IsNullOrWhiteSpace(file))
+                long episodeId = node?.id ?? 0;
+                if (episodeId == 0)
                     continue;
 
                 int episode = node?.episode ?? 0;
@@ -183,7 +184,7 @@ public class ExAnimeONController : BaseOnlineController
                 {
                     Episode = episode,
                     Title = episode > 0 ? $"{episode} серия" : "Серия",
-                    FileUrl = file
+                    Id = episodeId
                 });
             }
 
@@ -213,7 +214,8 @@ public class ExAnimeONController : BaseOnlineController
 
         foreach (var item in episodes.Value)
         {
-            string stream = HostStreamProxy(item.FileUrl);
+            // The stream is resolved when the episode is chosen: see Video() below.
+            string link = accsArgs($"{host}/lite/ex_animeon/video?episodeId={item.Id}&title={enc_title}&original_title={enc_original_title}");
             string epNum = item.Episode > 0 ? item.Episode.ToString() : Regex.Match(item.Title, "([0-9]+)").Groups[1].Value;
             if (string.IsNullOrEmpty(epNum))
                 epNum = (episodes.Value.IndexOf(item) + 1).ToString();
@@ -223,13 +225,68 @@ public class ExAnimeONController : BaseOnlineController
                 title ?? original_title,
                 s,
                 epNum,
-                stream,
+                link,
+                "call",
+                streamlink: $"{link.Replace("/video?", "/video.m3u8?")}&play=true",
                 vast: init.vast
             );
         }
 
         return ContentTpl(etpl);
     }
+
+    #region Video
+    // The site no longer puts the stream into the episode list: the address of an episode is asked separately
+    // (api/player/{episodeId}/episode) and points to the Ashdi player page, which holds the HLS playlist.
+    [HttpGet, Staticache(manually: true)]
+    [Route("lite/ex_animeon/video")]
+    [Route("lite/ex_animeon/video.m3u8")]
+    async public Task<ActionResult> Video(long episodeId, bool play, string title, string original_title)
+    {
+        if (await IsRequestBlocked(rch: true))
+            return badInitMsg;
+
+        if (episodeId <= 0)
+            return OnError("episodeId");
+
+    rhubFallback:
+        var cache = await InvokeCacheResult<string>($"animeon:video:{episodeId}", 20, async e =>
+        {
+            var root = await httpHydra.Get<EpisodeUrlResponse>($"{init.host}/api/player/{episodeId}/episode");
+            string player = root?.videoUrl;
+            if (string.IsNullOrWhiteSpace(player))
+                return e.Fail("videoUrl", refresh_proxy: true);
+
+            if (player.Contains(".m3u8"))
+                return e.Success(player);
+
+            string hls = null;
+
+            await httpHydra.GetSpan(player, spanAction: html =>
+            {
+                hls = Rx.Match(html, "file: ?.(https?://[^\"']+\\.m3u8)");
+            });
+
+            if (string.IsNullOrEmpty(hls))
+                return e.Fail("hls", refresh_proxy: true);
+
+            return e.Success(hls);
+        });
+
+        if (IsRhubFallback(cache))
+            goto rhubFallback;
+
+        if (!cache.IsSuccess)
+            return OnError(cache.ErrorMsg);
+
+        string file = HostStreamProxy(cache.Value);
+
+        if (play)
+            return RedirectToPlay(file);
+
+        return ContentTo(VideoTpl.ToJson("play", file, title ?? original_title, vast: init.vast));
+    }
+    #endregion
 }
 
 

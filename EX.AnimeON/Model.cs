@@ -32,7 +32,7 @@ public class EpisodeOption
 
     public string Title { get; set; }
 
-    public string FileUrl { get; set; }
+    public long Id { get; set; }
 }
 
 public class SearchResponse
@@ -97,7 +97,12 @@ public class EpisodesResponse
 
 public class Episode
 {
-    public int episode { get; set; }
+    public long id { get; set; }
 
-    public string fileUrl { get; set; }
+    public int episode { get; set; }
+}
+
+public class EpisodeUrlResponse
+{
+    public string videoUrl { get; set; }
 }
