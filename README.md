@@ -227,18 +227,10 @@ export LAMPAC_PASSWD=...            # root-пароль Lampac, файл <Lampac
 Плагін працює і на старих ТВ (ES5). Якщо плагін прийшов, коли головна вже побудована
 (так буває на Android TV), він один раз оновлює екран.
 
-### <a id="glint"></a>Розширення для Glint (`glint/`)
+### <a id="glint"></a>Розширення для Glint
 
-[Glint](https://github.com/TrueNihilisme/glint) — окремий ТВ-фронт для Samsung Tizen 4. Ці файли підключаються в ньому
-(Налаштування → Розширення → Додати) за адресою jsDelivr, напр. `https://cdn.jsdelivr.net/gh/TrueNihilisme/lampac-extra@main/glint/tmdb.js`:
-
-| Файл | Що дає |
-|---|---|
-| `tmdb.js` | ряди для розділів (тренди, актор тижня, жанри, студії), опис, сезони, серії, пошук — зі своїм ключем TMDB або через `lampac-mcp` (ключ лишається на сервері) |
-| `lampac-mcp.js` | ряди від ШІ з `lampac-mcp` |
-| `lampac.js` | джерела Lampac: онлайн, озвучки, сезони, серії, RCH (без `eval`) |
-| `iptv.js` | «ТВ → IPTV» з плейлиста M3U, з програмою передач за бажанням |
-| `navidrome.js` | «Музика → Navidrome»: альбоми й плейлисти чергою |
+Розширення для [Glint](https://github.com/TrueNihilisme/glint) (окремий ТВ-фронт для Samsung Tizen 4) переїхали в його репозиторій:
+тека [`extensions/`](https://github.com/TrueNihilisme/glint/tree/main/extensions).
 
 ### Ліцензія
 
@@ -259,7 +251,7 @@ Additional online modules for Lampac NextGen. Prefix `EX.` and routes `lite/ex_*
 - `EX.MoonAnime` — MoonAnime through the account API (`token` in `init.conf`), direct HLS/webm links, no browser
 - `EX.TvCtl` + `plugin/tvctl.js` + `tools/tvctl` — remote control and diagnostics for Lampa (open a card / source / episode, see balancer requests, Lampa messages, player start)
 - `EX.Mcp` + `plugin/lampac-mcp.js` — Lampa main screen made of AI-managed rows (poster and wide 16:9 cards alternate) served by the [lampac-mcp](https://github.com/TrueNihilisme/lampac-mcp) MCP server; set `"EX.Mcp": { "collectionUrl": "http://LAMPAC-MCP:8787/api/collection" }` in `init.conf`
-- `glint/*.js` — extensions for [Glint](https://github.com/TrueNihilisme/glint), a TV front-end for Samsung Tizen 4: `tmdb.js` (rows, details, episodes, search; with a TMDB key or through lampac-mcp), `lampac-mcp.js` (AI rows), `lampac.js` (Lampac sources, voices, RCH without eval), `iptv.js` (TV from M3U), `navidrome.js` (music). ES5, loaded by their jsDelivr address
+- extensions for [Glint](https://github.com/TrueNihilisme/glint), a TV front-end for Samsung Tizen 4, moved to its repository: [`extensions/`](https://github.com/TrueNihilisme/glint/tree/main/extensions)
 
 Install: add the repository to `module/repository.yaml` (see above) or run
 
