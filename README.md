@@ -1,87 +1,115 @@
-# Lampac Extra Modules (`EX.*`)
+# lampac-extra
 
-Додаткові онлайн-модулі для Lampac NextGen.
-Усі модулі мають префікс `EX.` і власні адреси `lite/ex_*`, тож не конфліктують із вбудованими модулями Lampac.
+Extra modules, a helper service and Lampa plugins for [Lampac NextGen](https://github.com/lampac-nextgen/lampac).
 
-## Навігація
+Everything here is optional and independent: take one module or all of them. Module names start with `EX.`
+and their routes with `lite/ex_`, so nothing collides with the modules that ship with Lampac.
 
-- [Українська](#ua)
-- [English](#en)
+## Contents
 
-## <a id="ua"></a>Українська
+- [What is inside](#inside)
+- [Compatibility](#compat)
+- [Installation](#install)
+- [Configuration](#config)
+- [Exact anime matching: `animap`](#animap)
+- [Remote control and diagnostics: `tvctl`](#tvctl)
+- [AI-curated main screen](#rows)
+- [Glint extensions](#glint)
+- [Updating](#updating)
+- [License](#license)
 
-### Доступні модулі
+## <a id="inside"></a>What is inside
 
-**Аніме**
-- `EX.AnimeON` — AnimeON з точним вибором тайтлу за MAL ID
-- `EX.Mikai` — Mikai з точним вибором тайтлу за назвою оригіналу
-- `EX.MoonAnime` — MoonAnime через акаунт (потрібна підписка), відео без браузера
+| Part | Kind | What it does |
+|---|---|---|
+| `EX.AnimeON` | online source | AnimeON. Picks the exact title by MAL id when [`animap`](#animap) is configured; every episode is resolved to an HLS stream when it is chosen |
+| `EX.Mikai` | online source | Mikai. Picks the exact title by its native (romaji) name when [`animap`](#animap) is configured |
+| `EX.MoonAnime` | online source | MoonAnime through the account API (a subscription and a token are required); direct HLS / webm links, no browser needed |
+| `EX.UFDub` | online source | UFDub (Ukrainian dubs). Opens a title only on an exact name match, offers the site's separate pages as seasons, plays direct mp4 |
+| `EX.TvCtl` | service module | Server side of [`tvctl`](#tvctl): a command queue per device and a report log |
+| `EX.Mcp` | service module | Serves the feed of [AI-curated rows](#rows) to Lampa from the Lampac address |
+| `animap/` | helper service | TMDB card → MAL entries, with titles. Python 3 standard library only |
+| `plugin/tvctl.js` | Lampa plugin | Client side of [`tvctl`](#tvctl) |
+| `plugin/lampac-mcp.js` | Lampa plugin | Builds the Lampa main screen from [AI-curated rows](#rows) |
+| `tools/tvctl` | command-line tool | Sends commands to a TV and reads its reports |
 
-**Службові**
-- `EX.TvCtl` + плагін `tvctl.js` + утиліта `tvctl` — пульт для Lampa: відкрити картку, джерело, серію з компʼютера і бачити, що відбувається (які запити пішли до джерел, з якою помилкою, чи стартував плеєр)
-- `EX.Mcp` + плагін `lampac-mcp.js` — [головна з рядів ШІ](#rows): ряди формує ШІ через сервер [lampac-mcp](https://github.com/TrueNihilisme/lampac-mcp)
+Why the anime modules exist: the built-in AnimeON and Mikai search by title and often show unrelated works
+next to the right one. With `animap` the `EX.*` versions show only the seasons that belong to the opened card,
+and stay grey in the source list when the site does not have that title at all.
 
-Чим відрізняються від вбудованих: вбудовані AnimeON і Mikai шукають тайтл за назвою і часто показують зайве
-(для «Фрірен» — ще й «Початок після кінця»). `EX.*` з сервісом [`animap`](#animap) (є в репозиторії) показують лише сезони цієї картки.
+## <a id="compat"></a>Compatibility
 
-### Сумісність з lampac-ukraine
+- Lampac NextGen. Tested with version 1.84.2.
+- [lampac-ukraine](https://github.com/lampame/lampac-ukraine) can be installed side by side: the namespaces
+  (`EX.*` / `LME.*`), routes (`lite/ex_*` / `lite/lme_*`) and `init.conf` sections are different.
+  Do not enable `LME.AnimeON` / `LME.Mikai` together with `EX.AnimeON` / `EX.Mikai`, or the source list
+  will show AnimeON and Mikai twice.
+- The Lampa plugins are written in ES5 and run on old TV engines (Samsung Tizen 4, Android TV WebView).
 
-Конфліктів нема: інші простори імен (`EX.*` / `LME.*`), адреси (`lite/ex_*` / `lite/lme_*`) і секції `init.conf`.
-Але не підключайте разом `LME.AnimeON` / `LME.Mikai` і `EX.AnimeON` / `EX.Mikai` — інакше в списку джерел буде по два AnimeON і Mikai.
+## <a id="install"></a>Installation
 
-### Автовстановлення через `repository.yaml`
+Whichever way you choose, **restart Lampac twice** afterwards: on the first start it downloads the modules,
+on the second it compiles them. The log then has lines such as `loaded module: EX.AnimeON`.
 
-Створіть або оновіть `module/repository.yaml`:
+### Through `repository.yaml` (recommended)
+
+Create or extend `module/repository.yaml` in the Lampac directory and list the modules you want:
 
 ```yaml
 - repository: https://github.com/TrueNihilisme/lampac-extra
-  branch: main
+  branch: main          # optional, main by default
   modules:
     - EX.AnimeON
     - EX.Mikai
-    - EX.MoonAnime
+    - EX.MoonAnime      # needs a token, see Configuration
+    - EX.UFDub
+    - EX.TvCtl          # remote control
+    - EX.Mcp            # AI-curated main screen
 ```
 
-Важливо:
-- `branch` — необов'язково, за замовчуванням `main`.
-- `modules` — перелічіть лише потрібні модулі.
-- Після зміни **перезапустіть Lampac двічі**: перший запуск завантажує модулі, другий — компілює.
-- Вимкніть вбудовані двійники, щоб у списку джерел не було двох однакових (див. [init.conf](#initconf)).
+Then switch off the built-in twins in `init.conf` (see [Configuration](#config)).
 
-### Встановлення однією командою
+### With one command
 
-Запускайте на машині з файлами Lampac (для Docker — на хості, у підключеній теці):
+Run it on the machine that holds the Lampac files. With Docker that is the host, in the directory mounted
+into the container:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/TrueNihilisme/lampac-extra/main/install.sh | sh -s -- /path/to/lampac
 ```
 
-Скрипт додасть репозиторій у `repository.yaml` і вимкне вбудовані AnimeON / Mikai в `init.conf`
-(копії до змін — `*.before-lampac-extra`). Опції:
+The script adds this repository to `module/repository.yaml` with `EX.AnimeON` and `EX.Mikai`, and switches
+off the built-in AnimeON and Mikai in `init.conf`. Other modules are added to `repository.yaml` by hand.
 
-- `--moonanime-token TOKEN` — підключити `EX.MoonAnime`
-- `--animap http://host:port` — увімкнути точний вибір за MAL ID
-- `--restart CONTAINER` — двічі перезапустити Docker-контейнер Lampac
+| Option | Effect |
+|---|---|
+| `--moonanime-token TOKEN` | also installs `EX.MoonAnime`, stores the token and switches off the built-in MoonAnime |
+| `--animap http://host:port` | turns on exact matching through [`animap`](#animap) for `EX.AnimeON` and `EX.Mikai` |
+| `--restart CONTAINER` | restarts the Lampac Docker container twice and prints the loaded `EX.*` modules |
+| `--help` | prints the usage |
 
-Потрібен `python3`.
+Before changing anything the script saves `init.conf.before-lampac-extra` and
+`repository.yaml.before-lampac-extra`. It needs `python3`, and `init.conf` must be plain JSON: if the file
+has comments, the script stops without changes and the settings have to be added by hand.
+Its messages are in Ukrainian.
 
-### Ручне встановлення
+### By hand
 
-1. Клонуйте репозиторій:
 ```bash
 git clone https://github.com/TrueNihilisme/lampac-extra.git
 ```
 
-2. Скопіюйте потрібні теки модулів у директорію `module` вашого Lampac.
+Copy the module directories you need into the `module` directory of Lampac, or mount them into the container:
 
-3. Для Docker приклад монтування:
 ```bash
 -v /path/to/lampac-extra/EX.AnimeON:/lampac/module/EX.AnimeON
 ```
 
-### <a id="initconf"></a>Налаштування в `init.conf`
+## <a id="config"></a>Configuration
 
-Вимкнення вбудованих двійників:
+All settings live in `init.conf`.
+
+Switch off the built-in modules that an `EX.*` module replaces, otherwise the source appears twice:
 
 ```json
 "AnimeON":   { "enable": false, "enabled": false },
@@ -89,26 +117,39 @@ git clone https://github.com/TrueNihilisme/lampac-extra.git
 "MoonAnime": { "enable": false, "enabled": false }
 ```
 
-Наші модулі (усі поля необов'язкові, крім `token` для MoonAnime):
+Settings of the modules. Every field is optional except `token` for MoonAnime:
 
 ```json
 "EX.AnimeON": {
-  "animap": "http://host:port",
+  "animap": "http://host:8100",
   "displayname": "[UA] AnimeON"
 },
 "EX.Mikai": {
-  "animap": "http://host:port",
+  "animap": "http://host:8100",
   "displayname": "[UA] Mikai"
 },
 "EX.MoonAnime": {
   "token": "YOUR_TOKEN",
   "displayname": "MoonAnime"
+},
+"EX.UFDub": {
+  "displayname": "[UA] UFDub"
+},
+"EX.Mcp": {
+  "collectionUrl": "http://host:8787/api/collection"
 }
 ```
 
-Решта полів — стандартні для онлайн-модулів Lampac (`displayindex`, `useproxy`, `proxy` тощо).
+| Field | Module | Meaning |
+|---|---|---|
+| `animap` | `EX.AnimeON`, `EX.Mikai` | address of the [`animap`](#animap) service; empty means plain search by title |
+| `token` | `EX.MoonAnime` | account token, see below |
+| `collectionUrl` | `EX.Mcp` | address of the rows feed, see [AI-curated main screen](#rows) |
 
-### Токен MoonAnime
+The standard fields of Lampac online modules (`displayname`, `displayindex`, `host`, `useproxy`, `proxy`
+and so on) work as usual. `EX.TvCtl` has no settings.
+
+### MoonAnime token
 
 ```bash
 curl -s https://api.moonanime.vip/api/auth/login/ \
@@ -116,159 +157,192 @@ curl -s https://api.moonanime.vip/api/auth/login/ \
   -d '{"username":"LOGIN","password":"PASSWORD"}'
 ```
 
-У відповіді — `"token": "…"` (40 символів). Його й вставте в `EX.MoonAnime.token`.
+The answer contains `"token": "…"` (40 characters). Put it into `EX.MoonAnime.token`.
 
-### <a id="animap"></a>Точний вибір за MAL ID (`animap`)
+## <a id="animap"></a>Exact anime matching: `animap`
 
-Необовʼязковий сервіс. Без нього `EX.AnimeON` і `EX.Mikai` працюють як звичайні — за назвою.
-З ним: якщо картку знайдено в `animap`, а в джерелі такого тайтлу нема, джерело чесно показує «нічого не знайдено» (сіре в списку), а не підсовує схожий за назвою чужий тайтл.
+An optional service. Without it `EX.AnimeON` and `EX.Mikai` search by title like any other source.
+With it they know which MAL entries make up the opened TMDB card:
 
-**Архітектура**
+- only the seasons of that card are shown, in order;
+- if the site does not have the title, the source reports "nothing found" and stays grey in the list,
+  instead of offering a different work with a similar name.
 
 ```
- Lampa (ТВ)                Lampac                         animap                     зовнішні дані
- ──────────                ──────                         ──────                     ─────────────
- відкрили аніме ──────▶ EX.AnimeON / EX.Mikai
- (картка TMDB 209867)      │  GET /animap?tmdb=209867 ──▶ шукає картку в індексі ◀── Fribb/anime-lists
-                           │                              TMDB → MAL (раз на добу)     (TMDB↔MAL, сезони,
-                           │                              │                             зсув серій)
-                           │                              └─ назви за MAL ID ◀──────── Hikka API
-                           │  ◀── [{mal_id, title_ua, title_ja}, …]                     (UA/EN/JA, кеш)
+ Lampa (TV)               Lampac                          animap                    external data
+ ──────────               ──────                          ──────                    ─────────────
+ an anime is opened ───▶ EX.AnimeON / EX.Mikai
+ (TMDB card 209867)        │  GET /animap?tmdb=209867 ──▶ looks the card up     ◀── Fribb/anime-lists
+                           │                              TMDB → MAL (daily)        (TMDB ↔ MAL, seasons,
+                           │                              │                          episode offsets)
+                           │                              └─ titles by MAL id   ◀── Hikka API
+                           │  ◀── [{mal_id, title_ua, title_ja}, …]                 (cached)
                            │
-                           ├─ пошук у джерелі за назвою з Hikka
-                           └─ лишає лише записи з цими MAL ID ──▶ у Lampa: сезони цієї картки, по порядку
+                           ├─ searches the site by the title of the series itself
+                           └─ keeps only the entries with these MAL ids ──▶ Lampa: the seasons of this card
 ```
 
-**Запуск** — готовий сервіс у теці [`animap/`](animap/): один файл на Python без залежностей.
+### Running it
+
+One Python file without dependencies, in [`animap/`](animap/):
 
 ```bash
-# просто Python 3
-python3 animap/animap.py                       # слухає :8100
+python3 animap/animap.py                      # listens on :8100
 
-# або Docker
-cd animap && docker compose up -d --build      # Dockerfile + compose.yaml поруч
+cd animap && docker compose up -d --build     # or in Docker
 ```
 
-Перевірка: `curl "http://localhost:8100/animap?tmdb=209867&type=tv"` — має повернути три сезони «Фрірен».
-Перший запит після старту чекає, поки завантажиться база Fribb (~7 МБ).
-Налаштування через змінні середовища: `PORT` (8100), `REFRESH_HOURS` (24), `FRIBB_URL`, `HIKKA_URL`.
+Check: `curl "http://localhost:8100/animap?tmdb=209867&type=tv"` returns the three seasons of "Frieren".
+The first request after a start waits for the Fribb list to download (about 7 MB).
 
-Далі в `init.conf` Lampac: `"EX.AnimeON": { "animap": "http://АДРЕСА:8100" }` (і так само `EX.Mikai`).
+| Variable | Default | Meaning |
+|---|---|---|
+| `PORT` | `8100` | port to listen on |
+| `REFRESH_HOURS` | `24` | how often the TMDB ↔ MAL list is downloaded again |
+| `FRIBB_URL` | Fribb `anime-list-full.json` on GitHub | source of the TMDB ↔ MAL list |
+| `HIKKA_URL` | `https://api.hikka.io` | source of the titles |
 
-**Формат відповіді**
+Then point the modules at it: `"EX.AnimeON": { "animap": "http://host:8100" }`, and the same for `EX.Mikai`.
+
+### API
 
 ```
-GET /animap?tmdb=209867&type=tv        (type: tv | movie)
+GET /animap?tmdb=209867&type=tv        type: tv (default) | movie
+GET /health
 ```
+
+The answer, shortened to two of the three entries:
 
 ```json
 { "ok": true, "tmdb": 209867, "type": "tv", "entries": [
-  { "mal_id": 52991, "tmdb_season": 1, "episode_offset": 0,  "title_ua": "Проводжальниця Фрірен",           "title_ja": "Sousou no Frieren" },
-  { "mal_id": 59978, "tmdb_season": 1, "episode_offset": 28, "title_ua": "Проводжальниця Фрірен - 2 сезон", "title_ja": "Sousou no Frieren 2nd Season" }
+  { "mal_id": 52991, "tmdb_season": 1, "episode_offset": 0,  "title_ua": "<Ukrainian title>", "title_ja": "Sousou no Frieren" },
+  { "mal_id": 59978, "tmdb_season": 1, "episode_offset": 28, "title_ua": "<Ukrainian title>", "title_ja": "Sousou no Frieren 2nd Season" }
 ] }
 ```
 
-Модулям достатньо `mal_id`, `title_ua` (AnimeON) і `title_ja` (Mikai); решта полів — для довідки.
-Дані: [Fribb/anime-lists](https://github.com/Fribb/anime-lists), [Hikka API](https://api.hikka.io/docs).
+Each entry also carries `type`, `anilist_id`, `imdb_id`, `hikka_slug`, `title_en`, `year` and `episodes`.
+The modules use `mal_id` and `title_ua` (AnimeON) or `title_ja` (Mikai). Specials, which TMDB keeps in
+season 0, are listed too; the modules take the search title from a real season.
 
-### Пульт (`EX.TvCtl` + `tvctl.js` + `tvctl`)
+Data: [Fribb/anime-lists](https://github.com/Fribb/anime-lists), [Hikka API](https://api.hikka.io/docs).
 
-Навіщо: керувати Lampa на телевізорі з компʼютера і бачити, чому джерело «не відповідає» —
-який саме запит пішов, з яким кодом і за скільки часу, що показала Lampa, чи запустився плеєр.
+## <a id="tvctl"></a>Remote control and diagnostics: `tvctl`
 
-1. Підключіть модуль `EX.TvCtl` (у `repository.yaml` або скриптом) і перезапустіть Lampac двічі.
-2. Скопіюйте `plugin/tvctl.js` у `<Lampac>/wwwroot/custom/tvctl.js`.
-3. У Lampa: Налаштування → Розширення → Додати плагін → `http(s)://ВАШ-LAMPAC/custom/tvctl.js`, перезапустіть Lampa.
-   Щоб пульт працював лише на деяких пристроях, задайте до завантаження плагіна
-   `window.tvctl_devices = ['MIBOX4', 'TIZEN'];` (назва пристрою — модель Android, `TIZEN` для Samsung).
-4. На компʼютері:
+`tvctl` drives Lampa on a TV from a computer and shows what happens there: which request went to a source,
+with which status and how long it took, what Lampa displayed, whether the player started. It answers
+"why does this source not work on the TV" without walking through the menus with a remote.
+
+It has three parts: the module `EX.TvCtl`, the Lampa plugin `plugin/tvctl.js` and the script `tools/tvctl`.
+
+### Setup
+
+1. Install the module `EX.TvCtl` (see [Installation](#install)) and restart Lampac twice.
+2. Copy `plugin/tvctl.js` to `<Lampac>/wwwroot/custom/tvctl.js`.
+3. In Lampa open Settings → Extensions → Add plugin, enter `http(s)://YOUR-LAMPAC/custom/tvctl.js` and
+   restart Lampa.
+4. On the computer:
 
 ```bash
 export LAMPAC=http://your-lampac:9118
-export LAMPAC_PASSWD=...            # root-пароль Lampac, файл <Lampac>/passwd
-./tools/tvctl devices               # хто на звʼязку
-./tools/tvctl cmd '{"cmd":"open","id":209867,"type":"tv"}'   # відкрити картку TMDB
-./tools/tvctl cmd '{"cmd":"online"}'                          # «Онлайн»
-./tools/tvctl cmd '{"cmd":"items"}'                           # що є на екрані (з номерами)
-./tools/tvctl cmd '{"cmd":"click","index":5}'                 # натиснути пункт №5
-./tools/tvctl log 20                                          # останні звіти
+export LAMPAC_PASSWD=...            # Lampac root password, the file <Lampac>/passwd
+
+./tools/tvctl devices                                          # who is connected
+./tools/tvctl cmd '{"cmd":"open","id":209867,"type":"tv"}'     # open a TMDB card
+./tools/tvctl cmd '{"cmd":"online"}'                           # open "Online"
+./tools/tvctl cmd '{"cmd":"items"}'                            # what is on the screen, numbered
+./tools/tvctl cmd '{"cmd":"click","index":5}'                  # press item 5
+./tools/tvctl log 20                                           # the last 20 reports
 ```
 
-Команди: `state`, `items`, `click {index}`, `key {keys: [up, down, left, right, enter, back, backward]}`,
-`settings`, `home`, `caps` (що підтримує рушій: `backdrop-filter`, `grid` тощо), `plugins` (збережені на пристрої плагіни), `plugins_prune` (прибрати записи без адреси — через них Lampa пише «деякі плагіни не завантажились»), `open {id, type: tv|movie}`, `online {balanser?}`, `reload`,
-плеєр: `play {url, title?}` (увімкнути будь-яку адресу потоку), `media` (позиція й тривалість у секундах — для ефіру на Tizen тривалість 0, пауза, розмір картинки),
-`seek {t}` (перемотати на секунду), `pause`, `resume`.
-`items`/`click` працюють у тому шарі, де зараз пульт: налаштування, список вибору, діалог, меню, шапка або екран;
-`state` показує його ім'я (`controller`). `back` — як кнопка «Назад» на пульті, `backward` — крок назад по екранах.
-`tvctl log` і `devices` показують час у часовому поясі компʼютера (Lampac у Docker пише UTC).
-Звіти: `req` (запити до джерел — і нативні на Android), `noty` (повідомлення Lampa), `player_start`,
-`activity`, `error`, `result`.
+`tvctl cmd '<json>' [DEVICE]` sends the command to the named device, to `$TVCTL_DEV`, or to the first
+device that is connected. `tvctl log [N]` prints the last N reports (30 by default). Times are shown in the
+time zone of the computer.
 
-Безпека: телевізор опитує `/tvctl/poll` і шле `/tvctl/report` без пароля; надсилати команди
-й читати журнал можна лише з root-паролем Lampac.
+The device name is the Android model from the User-Agent (for example `MIBOX4`), `TIZEN` on Samsung, and a
+random id saved in Lampa otherwise. To let only some devices answer, set a list before the plugin loads:
 
-### <a id="rows"></a>Головна з рядів ШІ (`EX.Mcp` + `lampac-mcp.js`)
-
-![Головна з рядів ШІ](docs/img/main-rows.jpg)
-
-Головний екран Lampa складається з рядів, які формує ШІ: вертикальні й широкі (16:9) картки чергуються —
-фільми, серіали, мультфільми, аніме. Ряди і їхній склад ШІ задає через MCP-сервер
-[lampac-mcp](https://github.com/TrueNihilisme/lampac-mcp); Lampa отримує лише ідентифікатори TMDB,
-а постери, кадри й описи бере через власне джерело TMDB (той самий проксі), з кешем на добу.
-Ряди Lampa та інших плагінів («Продовжити перегляд», виходи серій) — унизу, після рядів ШІ.
-Без рядів або без сервера показується звичайна головна TMDB.
-
-1. Запустіть [lampac-mcp](https://github.com/TrueNihilisme/lampac-mcp).
-2. Підключіть модуль `EX.Mcp` і вкажіть адресу фіду в `init.conf`:
-   `"EX.Mcp": { "collectionUrl": "http://АДРЕСА-LAMPAC-MCP:8787/api/collection" }`.
-   Lampa бере фід через Lampac (`/mcp/collection`) — той самий домен, без CORS і змішаного http/https.
-3. Скопіюйте `plugin/lampac-mcp.js` у `<Lampac>/wwwroot/custom/` і підключіть як плагін.
-
-Плагін працює і на старих ТВ (ES5). Якщо плагін прийшов, коли головна вже побудована
-(так буває на Android TV), він один раз оновлює екран.
-
-### <a id="glint"></a>Розширення для Glint
-
-Розширення для [Glint](https://github.com/TrueNihilisme/glint) (окремий ТВ-фронт для Samsung Tizen 4) переїхали в його репозиторій:
-тека [`extensions/`](https://github.com/TrueNihilisme/glint/tree/main/extensions).
-
-### Ліцензія
-
-Репозиторій поширюється за **GNU AGPL-3.0** (файл [`LICENSE`](LICENSE)).
-
-`EX.AnimeON`, `EX.Mikai`, `EX.MoonAnime` — змінені версії модулів з
-[Lampac NextGen](https://github.com/lampac-nextgen/lampac) (AGPL-3.0), тому успадковують її умови.
-Змінено: 2026-10-22 (докладно — в історії комітів).
-`EX.TvCtl`, `tvctl.js`, `tvctl`, `animap`, `EX.Mcp` і `lampac-mcp.js` написані окремо.
-
----
-
-## <a id="en"></a>English
-
-Additional online modules for Lampac NextGen. Prefix `EX.` and routes `lite/ex_*` avoid conflicts with built-in modules.
-
-- `EX.AnimeON`, `EX.Mikai` — anime sources that pick the exact title by MAL id when the [`animap`](#animap) service (included, `animap/animap.py`, Python stdlib only) is configured
-- `EX.MoonAnime` — MoonAnime through the account API (`token` in `init.conf`), direct HLS/webm links, no browser
-- `EX.TvCtl` + `plugin/tvctl.js` + `tools/tvctl` — remote control and diagnostics for Lampa (open a card / source / episode, see balancer requests, Lampa messages, player start)
-- `EX.Mcp` + `plugin/lampac-mcp.js` — Lampa main screen made of AI-managed rows (poster and wide 16:9 cards alternate) served by the [lampac-mcp](https://github.com/TrueNihilisme/lampac-mcp) MCP server; set `"EX.Mcp": { "collectionUrl": "http://LAMPAC-MCP:8787/api/collection" }` in `init.conf`
-- extensions for [Glint](https://github.com/TrueNihilisme/glint), a TV front-end for Samsung Tizen 4, moved to its repository: [`extensions/`](https://github.com/TrueNihilisme/glint/tree/main/extensions)
-
-Install: add the repository to `module/repository.yaml` (see above) or run
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/TrueNihilisme/lampac-extra/main/install.sh | sh -s -- /path/to/lampac
+```js
+window.tvctl_devices = ['MIBOX4', 'TIZEN'];
 ```
 
-then restart Lampac twice and disable the built-in `AnimeON` / `Mikai` / `MoonAnime` in `init.conf`.
+### Commands
 
-`EX.AnimeON`, `EX.Mikai`, `EX.MoonAnime` are based on the modules of the same name in
-[Lampac NextGen](https://github.com/lampac-nextgen/lampac).
+| Command | Parameters | Effect |
+|---|---|---|
+| `state` | | the current screen, its title, the focused item and the active layer (`controller`) |
+| `items` | | numbered list of what can be pressed in the active layer |
+| `click` | `index` | presses item `index` from the list |
+| `key` | `keys` | presses keys in order: `up`, `down`, `left`, `right`, `enter`, `back` (the Back button), `backward` (one screen back) |
+| `home` | | opens the main screen |
+| `settings` | | opens Settings |
+| `open` | `id`, `type` (`tv` or `movie`), `source` (optional, `tmdb` by default) | opens a card |
+| `online` | `balanser` (optional) | opens "Online" for the current card, optionally with a source |
+| `play` | `url`, `title` (optional) | plays any stream address in the Lampa player |
+| `media` | | player position and length in seconds, pause state, picture size; length is 0 for live streams on Tizen |
+| `seek` | `t` | jumps to second `t` |
+| `pause`, `resume` | | pause and continue |
+| `reload` | | reloads Lampa |
+| `goto` | `url` | opens a page of the same Lampac in place of Lampa, for example `/custom/<page>/`; going back in history returns to Lampa |
+| `caps` | | what the browser engine supports (`backdrop-filter`, `grid` and so on) |
+| `plugins` | | plugins stored on the device and those that failed to load at this start |
+| `plugins_prune` | | removes stored plugins that have no address; Lampa reports them as "not loaded" at every start |
 
-### License
+`items` and `click` work in the layer that has the focus: settings, a selection list, a dialog, the menu,
+the header or the screen. `state` names that layer.
 
-Licensed under the **GNU AGPL-3.0** (see [`LICENSE`](LICENSE)).
+### Reports
 
-`EX.AnimeON`, `EX.Mikai` and `EX.MoonAnime` are modified versions of modules from
+`hello`, `result`, `req` (requests to sources, including the native ones on Android), `xhr`, `noty`
+(Lampa messages), `player_start`, `player_destroy`, `activity`, `error`.
+
+### Security
+
+The TV polls `/tvctl/poll` and posts to `/tvctl/report` without a password. Sending commands and reading
+the log (`/tvctl/cmd`, `/tvctl/log`, `/tvctl/devices`) require the Lampac root password.
+The log is kept in memory only. It can contain full stream addresses (`player_start`), so treat its
+output as private.
+
+## <a id="rows"></a>AI-curated main screen
+
+![Main screen made of AI-curated rows](docs/img/main-rows.jpg)
+
+The Lampa main screen is built from rows that an AI maintains: poster rows and wide 16:9 rows alternate —
+movies, series, cartoons, anime. The rows and their contents are managed through the
+[lampac-mcp](https://github.com/TrueNihilisme/lampac-mcp) server. Lampa receives only TMDB ids; posters,
+backdrops and descriptions come from its own TMDB source and are cached on the device for a day.
+Rows of Lampa itself and of other plugins, such as "Continue watching", stay below.
+Without rows, or when the server is unreachable, the usual TMDB main screen is shown.
+
+1. Run [lampac-mcp](https://github.com/TrueNihilisme/lampac-mcp).
+2. Install the module `EX.Mcp` and set the feed address in `init.conf`:
+   `"EX.Mcp": { "collectionUrl": "http://host:8787/api/collection" }`.
+   Lampa reads the feed through Lampac (`/mcp/collection`), from the same address as everything else,
+   so there are no CORS or mixed-content problems.
+3. Copy `plugin/lampac-mcp.js` to `<Lampac>/wwwroot/custom/` and add it in Lampa as a plugin
+   (Settings → Extensions → Add plugin).
+
+The plugin needs Lampa 3 or newer. If it loads after the main screen has already been built, which happens
+on Android TV, it refreshes the screen once.
+
+## <a id="glint"></a>Glint extensions
+
+Extensions for [Glint](https://github.com/TrueNihilisme/glint), a separate TV front-end for Samsung Tizen 4,
+live in its repository: [`extensions/`](https://github.com/TrueNihilisme/glint/tree/main/extensions).
+
+## <a id="updating"></a>Updating
+
+Lampac checks the repositories from `repository.yaml` at every start and downloads new module versions in
+the background. A downloaded version is compiled at the next start, so an update also takes two restarts.
+
+The Lampa plugins and `animap` are plain files: replace them with the new versions.
+
+## <a id="license"></a>License
+
+[GNU AGPL-3.0](LICENSE).
+
+`EX.AnimeON`, `EX.Mikai` and `EX.MoonAnime` are modified versions of the modules of the same name from
 [Lampac NextGen](https://github.com/lampac-nextgen/lampac) (AGPL-3.0) and inherit its terms.
-Modified: 2026-10-22 (see the commit history for details).
-`EX.TvCtl`, `tvctl.js`, `tvctl`, `animap`, `EX.Mcp` and `lampac-mcp.js` are original to this repository.
+They were first modified on 2026-10-22; the commit history lists every change.
+
+`EX.UFDub`, `EX.TvCtl`, `EX.Mcp`, `animap`, `tvctl.js`, `lampac-mcp.js` and `tvctl` are original to this
+repository.
