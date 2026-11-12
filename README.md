@@ -16,6 +16,7 @@ and their routes with `lite/ex_`, so nothing collides with the modules that ship
 - [AI-curated main screen](#rows)
 - [Glint extensions](#glint)
 - [Updating](#updating)
+- [Support](#support)
 - [License](#license)
 
 ## <a id="inside"></a>What is inside
@@ -335,6 +336,18 @@ Lampac checks the repositories from `repository.yaml` at every start and downloa
 the background. A downloaded version is compiled at the next start, so an update also takes two restarts.
 
 The Lampa plugins and `animap` are plain files: replace them with the new versions.
+
+## <a id="support"></a>Support
+
+If this project is useful to you, you can support its development with a crypto donation:
+
+| Network | Address |
+|---|---|
+| Bitcoin (BTC) | `bc1q0sw0w9mqtghrxfyyqw834sjs7t7rr7futulgv4` |
+| Ethereum (ETH) | `0xAb3a04a4b52547a7f8B00abb0088D3d9d11CA461` |
+| Solana (SOL) | `2QBoKrUaiAcAKxNJ7o9oe9Q16ptjLQohR8KyPX2tpJhZ` |
+
+Send each coin only on the network named in its row: a transfer made on another network cannot be recovered.
 
 ## <a id="license"></a>License
 
